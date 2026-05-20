@@ -79,8 +79,8 @@
 
     <!-- 0. LOADING SCREEN -->
     <div id="screen-loading" class="screen active">
-        <h1>Connecting...</h1>
-        <p>Synchronizing with Firebase server</p>
+        <h1 id="loading-header">Connecting...</h1>
+        <p id="loading-sub">Synchronizing with Firebase server</p>
     </div>
 
     <!-- 1. ROLE SELECTION -->
@@ -227,8 +227,7 @@
             team: 'red'
         };
 
-        // --- Global Firebase Listener ---
-        // This fires immediately when the page loads, pulling the global state
+        // --- Global Firebase Listener with ERROR HANDLING ---
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
             
@@ -236,7 +235,7 @@
                 state = data;
             } else {
                 // If database is completely empty, seed it with the default state
-                set(gameRef, state);
+                set(gameRef, state).catch(err => console.error("Write error:", err));
             }
 
             // Hide loading screen on first successful fetch
@@ -250,11 +249,31 @@
 
             // If user has already selected a role, update the UI dynamically
             if (role) {
-                // If Attacker refreshes the page mid-game, resume the clock
                 if (role === 'attacker' && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
                     startMasterTick();
                 }
                 updateUI();
+            }
+        }, (error) => {
+            // THIS WILL SHOW THE EXACT ERROR ON SCREEN IF IT FAILS
+            document.getElementById('loading-header').innerText = "Firebase Error!";
+            document.getElementById('loading-header').style.color = "#e74c3c";
+            
+            if (error.message.includes("Permission denied")) {
+                document.getElementById('loading-sub').innerHTML = `
+                    <b>Permission Denied!</b><br><br>
+                    You need to change your Firebase Rules to:<br>
+                    <pre style="background:#111; padding:10px; margin-top:10px; text-align:left;">
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+                    </pre>
+                `;
+            } else {
+                document.getElementById('loading-sub').innerText = error.message;
             }
         });
 
@@ -307,7 +326,6 @@
         };
 
         window.resetApp = () => {
-            // Only the attacker resets the global database
             if (role === 'attacker') {
                 const resetState = {
                     phase: 'menu',
@@ -352,7 +370,6 @@
 
                 // Tick Capture Time if in CP phase
                 if (state.phase.startsWith('cp')) {
-                    // Deduct 2 seconds if holding, otherwise 1
                     let deduction = state.accelerated ? 2 : 1;
                     state.cpTime -= deduction;
 
@@ -403,21 +420,19 @@
         // --- Firebase Push ---
         function pushState() {
             if (role === 'attacker') {
-                set(gameRef, state);
-                updateUI(); // Local update instantly to prevent UI lag
+                set(gameRef, state).catch(err => console.error(err));
+                updateUI(); 
             }
         }
 
         // --- UI Rendering ---
         function updateUI() {
-            // Handle Pause Overlay
             const overlay = document.getElementById('paused-overlay');
             overlay.style.display = state.paused ? 'flex' : 'none';
 
             const formattedGlobal = formatTime(state.globalTime);
             const formattedLocal = formatTime(state.cpTime);
 
-            // Hide all screens first to prevent overlap
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
 
             if (role === 'attacker') {
@@ -454,10 +469,8 @@
                     }
                 }
             } else if (role === 'defender') {
-                // Ensure Defender dashboard is visible
                 document.getElementById('screen-defender').classList.add('active');
                 
-                // Defender Read-Only Updates
                 document.getElementById('def-team-display').innerText = state.team === 'red' ? '🔴 RED TEAM ATTACKING' : '🔵 BLUE TEAM ATTACKING';
                 document.getElementById('def-global-time').innerText = formattedGlobal;
                 
@@ -489,7 +502,6 @@
             }
         }
 
-        // Helper
         function formatTime(totalSeconds) {
             if(totalSeconds < 0) totalSeconds = 0;
             const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
