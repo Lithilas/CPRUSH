@@ -111,7 +111,7 @@
             </div>
             <div>
                 <div class="timer-label">Capture Progress</div>
-                <div class="timer-box" id="capture-local-time">25:00</div>
+                <div class="timer-box" id="capture-local-time">20:00</div>
             </div>
         </div>
         
@@ -216,9 +216,10 @@
         const db = getDatabase(app);
         const gameRef = ref(db, 'game');
 
+        // UPDATED TIMING CONF: 20 min, 18 min, 15 min
         const TIMERS = {
             global: 105 * 60,
-            normal: { cp1: 25 * 60, cp2: 20 * 60, cp3: 15 * 60 },
+            normal: { cp1: 20 * 60, cp2: 18 * 60, cp3: 15 * 60 },
             demo: { cp1: 3 * 60, cp2: 2 * 60, cp3: 1 * 60 }
         };
 
@@ -255,7 +256,6 @@
             }
 
             if (role) {
-                // If attacker or GM sees the game is running globally and master timer isn't active on this thread, spin it up
                 if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
                     startMasterTick();
                 }
@@ -297,7 +297,6 @@
         // --- Attacker game initialization ---
         window.startGame = () => {
             if (!setupTeam || !setupMode) return alert("Select Team and Mode first!");
-            // Attackers start at the physical travel screen
             state = { phase: 'pre1', globalTime: TIMERS.global, cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, paused: false, mode: setupMode, team: setupTeam };
             pushState();
             startMasterTick();
@@ -321,9 +320,9 @@
             if (state.phase !== 'menu' && !confirm("Game is already running! Force restart?")) return;
             if (!setupTeam || !setupMode) return alert("Select Team and Mode in Setup first!");
             
-            // FIXED: GM skips 'pre1' (travel room) entirely, launching the active capture grid right away
+            // ADJUSTED: GM starts 'pre1' (Travel Phase). Global timer runs, local is locked until entry.
             state = { 
-                phase: 'cp1', 
+                phase: 'pre1', 
                 globalTime: TIMERS.global, 
                 cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, 
                 paused: false, 
@@ -421,7 +420,6 @@
         // --- UI Rendering ---
         function updateUI() {
             const overlay = document.getElementById('paused-overlay');
-            // Show pause overlay to everyone EXCEPT the Game master so they can still manage controls
             overlay.style.display = (state.paused && role !== 'gm') ? 'flex' : 'none';
 
             const formattedGlobal = formatTime(state.globalTime);
