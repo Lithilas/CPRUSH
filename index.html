@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lithilas CP RUSH</title>
-    <!-- Tailwind CSS greitam dizainui -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { user-select: none; -webkit-user-select: none; }
@@ -15,15 +14,15 @@
 
     <div id="app" class="bg-white w-full max-w-md h-full sm:h-[800px] sm:rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
         
-        <!-- ================= EKRANAS: ROLĖS PASIRINKIMAS ================= -->
+        <!-- ROLĖS PASIRINKIMAS -->
         <div id="screen-role" class="flex flex-col items-center justify-center h-full p-6 text-center">
             <h1 class="text-3xl font-bold mb-8">LITHILAS: CP RUSH</h1>
             <p class="mb-4 text-lg">Pasirinkite savo rolę:</p>
-            <button onclick="selectRole('main')" class="w-full bg-blue-600 text-white py-4 rounded-xl text-xl font-bold mb-4 active:bg-blue-700">⚔️ PUOLĖJAS (Main)</button>
-            <button onclick="selectRole('view')" class="w-full bg-red-600 text-white py-4 rounded-xl text-xl font-bold active:bg-red-700">🛡️ GYNĖJAS (View)</button>
+            <button id="btn-main" onclick="selectRole('main')" class="w-full bg-blue-600 text-white py-4 rounded-xl text-xl font-bold mb-4 active:bg-blue-700 transition-colors">⚔️ PUOLĖJAS (Main)</button>
+            <button id="btn-view" onclick="selectRole('view')" class="w-full bg-red-600 text-white py-4 rounded-xl text-xl font-bold active:bg-red-700 transition-colors">🛡️ GYNĖJAS (View)</button>
         </div>
 
-        <!-- ================= EKRANAS: PUOLĖJO (MAIN) NUSTATYMAI ================= -->
+        <!-- PUOLĖJŲ NUSTATYMAI -->
         <div id="screen-setup" class="hidden flex-col items-center justify-center h-full p-6 text-center">
             <h2 class="text-2xl font-bold mb-8">Puolėjų nustatymai</h2>
             <p class="mb-2">Komandos spalva:</p>
@@ -35,7 +34,7 @@
             <button onclick="startGame(true)" class="w-full bg-purple-600 text-white py-4 rounded-xl text-lg font-bold active:bg-purple-700">Pradėti Demo (3-2-1 min)</button>
         </div>
 
-        <!-- ================= EKRANAS: AKTYVUS ŽAIDIMAS ================= -->
+        <!-- AKTYVUS ŽAIDIMAS -->
         <div id="screen-game" class="hidden flex-col h-full p-4 relative">
             
             <div class="flex justify-between items-center mb-6">
@@ -70,20 +69,17 @@
                 
                 <!-- Didelis mygtukas puolėjams -->
                 <div id="btn-accelerate" class="hidden w-full h-64 bg-gray-400 mt-auto rounded-xl flex items-center justify-center cursor-pointer touch-none select-none">
-                    <span id="btn-accelerate-text" class="text-white text-3xl font-bold">PAGREITINTI</span>
+                    <span id="btn-accelerate-text" class="text-white text-3xl font-bold pointer-events-none">PAGREITINTI</span>
                 </div>
 
-                <!-- Mygtukas Žaisti iš naujo (Pasirodys tik pabaigoje) -->
                 <button id="btn-restart" onclick="restartGame()" class="hidden w-full bg-gray-800 text-white py-4 rounded-xl text-lg font-bold mt-8">Žaisti iš naujo</button>
             </div>
             
         </div>
     </div>
 
-    <!-- Žaidimo Logika ir Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        // PAŠALINTA ANALYTICS, KAD NEBLOKUOTŲ TELEFONŲ NARŠYKLĖS
         import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
@@ -93,7 +89,6 @@
             storageBucket: "cprush-2249a.firebasestorage.app",
             messagingSenderId: "40928992118",
             appId: "1:40928992118:web:86c09b9eab9d9539c67857",
-            // Jūsų duomenų bazės nuoroda
             databaseURL: "https://cprush-2249a-default-rtdb.europe-west1.firebasedatabase.app"
         };
 
@@ -135,13 +130,17 @@
 
         window.selectRole = (role) => {
             userRole = role;
-            screens.role.classList.add('hidden');
             
             if (role === 'main') {
-                // TIKRINAME AR ŽAIDIMAS JAU VYKSTA
+                const btn = document.getElementById('btn-main');
+                const originalText = btn.innerText;
+                btn.innerText = "⏳ Jungiamasi...";
+                btn.disabled = true;
+
                 get(gameRef).then((snapshot) => {
+                    screens.role.classList.add('hidden');
                     const data = snapshot.val();
-                    // Jei duomenys egzistuoja ir žaidimas nėra pradinėje ar pabaigos būsenoje
+                    
                     if (data && data.status !== States.MAIN && data.status !== States.VICTORY && data.status !== States.GAME_OVER) {
                         state = data;
                         screens.game.classList.remove('hidden');
@@ -150,16 +149,21 @@
                         renderUI();
                         startAttackerLoop();
                     } else {
-                        // Jei nevyksta, rodome nustatymus
                         screens.setup.classList.remove('hidden');
                         screens.setup.classList.add('flex');
                     }
+                    btn.innerText = originalText;
+                    btn.disabled = false;
                 }).catch((error) => {
-                    console.error("Klaida skaitant duomenis:", error);
+                    console.error("Firebase klaida:", error);
+                    screens.role.classList.add('hidden');
                     screens.setup.classList.remove('hidden');
                     screens.setup.classList.add('flex');
+                    btn.innerText = originalText;
+                    btn.disabled = false;
                 });
             } else {
+                screens.role.classList.add('hidden');
                 screens.game.classList.remove('hidden');
                 screens.game.classList.add('flex');
                 document.getElementById('view-shields').classList.remove('hidden');
@@ -220,7 +224,6 @@
             renderUI();
         };
 
-        // Nauja funkcija: Žaisti iš naujo
         window.restartGame = () => {
             if (gameLoop) clearInterval(gameLoop);
             state = {
@@ -233,32 +236,35 @@
                 isPressed: false
             };
             set(gameRef, state).then(() => {
-                location.reload(); // Perkrauna puslapį ir leidžia pradėti nuo nulio
+                location.reload(); 
             });
         };
 
         const accBtn = document.getElementById('btn-accelerate');
         
-        const pressStart = (e) => {
-            if(e) e.preventDefault();
+        // Saugūs liečiamųjų ekranų įvykiai (be e.preventDefault())
+        const pressStart = () => {
             if(state.isPaused) return;
             state.isPressed = true;
             accBtn.style.backgroundColor = state.teamColor === 'Red' ? '#ef4444' : '#3b82f6';
             document.getElementById('btn-accelerate-text').innerText = "GREIČIAU!";
             updateFirebase();
         };
-        const pressEnd = (e) => {
-            if(e) e.preventDefault();
+        const pressEnd = () => {
             state.isPressed = false;
             accBtn.style.backgroundColor = '#9ca3af'; 
             document.getElementById('btn-accelerate-text').innerText = state.isPaused ? "PAUZĖ" : "PAGREITINTI";
             updateFirebase();
         };
 
+        // Pelių paspaudimai kompiuteriui
         accBtn.addEventListener('mousedown', pressStart);
-        accBtn.addEventListener('touchstart', pressStart);
         window.addEventListener('mouseup', pressEnd);
+        
+        // Touch įvykiai telefonams
+        accBtn.addEventListener('touchstart', pressStart);
         window.addEventListener('touchend', pressEnd);
+        window.addEventListener('touchcancel', pressEnd);
 
         function startAttackerLoop() {
             if (gameLoop) clearInterval(gameLoop);
