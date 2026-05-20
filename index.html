@@ -1,89 +1,184 @@
 <!DOCTYPE html>
-<html lang="lt">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lithilas CP RUSH</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Capture The Point</title>
     <style>
-        /* Apsauga nuo netyčinio teksto žymėjimo */
-        body { user-select: none; -webkit-user-select: none; }
-        .hidden { display: none !important; }
-        /* Kritiškai svarbu telefonams: neleidžia slinkti ekrano ant mygtuko */
-        .no-touch-action { touch-action: none; }
+        :root {
+            --red-team: #e74c3c;
+            --blue-team: #3498db;
+            --bg-dark: #2c3e50;
+            --text-light: #ecf0f1;
+            --btn-bg: #34495e;
+            --accent: #f1c40f;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-light); overflow-x: hidden; user-select: none; }
+        
+        .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        .active { display: flex; }
+        
+        h1 { margin-bottom: 20px; font-size: 2.5rem; }
+        h2 { margin-bottom: 15px; font-size: 1.8rem; color: var(--accent); }
+        
+        .btn { background-color: var(--btn-bg); color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; margin: 10px; cursor: pointer; transition: 0.2s; width: 80%; max-width: 300px; }
+        .btn:active { transform: scale(0.95); }
+        .btn-red { background-color: var(--red-team); }
+        .btn-blue { background-color: var(--blue-team); }
+        .btn-pause { background-color: #e67e22; position: fixed; top: 10px; right: 10px; width: auto; padding: 10px 20px; z-index: 100; display: none; }
+
+        .timers { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; width: 100%; max-width: 400px; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; }
+        .timer-box { font-size: 2rem; font-weight: bold; }
+        .timer-label { font-size: 1rem; color: #bdc3c7; text-transform: uppercase; letter-spacing: 1px; }
+        .global-timer { color: var(--accent); }
+
+        /* The Hold Square */
+        .capture-square {
+            width: 250px;
+            height: 250px;
+            background-color: #7f8c8d;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            touch-action: none; /* Prevent scrolling while holding */
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .capture-square.holding {
+            background-color: #2ecc71;
+            transform: scale(0.95);
+        }
+        .speed-indicator { margin-top: 15px; font-size: 1.2rem; font-weight: bold; color: #2ecc71; opacity: 0; transition: opacity 0.2s; }
+        .holding + .speed-indicator { opacity: 1; }
+
+        /* Defender View Specific */
+        .status-indicator { font-size: 1.5rem; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; width: 100%; max-width: 400px; }
+        .pulsing { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        #paused-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        #paused-overlay h1 { color: #e67e22; }
     </style>
 </head>
-<body class="bg-gray-200 text-gray-900 font-sans h-screen flex justify-center items-center">
+<body>
 
-    <div id="app" class="bg-white w-full max-w-md h-full sm:h-[800px] sm:rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
+    <!-- Global Pause Overlay -->
+    <div id="paused-overlay">
+        <h1>GAME PAUSED</h1>
+        <p>Global and Capture timers are frozen.</p>
+        <button class="btn btn-pause-toggle" style="display:none;" id="resume-btn">Resume Game</button>
+    </div>
+
+    <!-- Attacker Pause Button -->
+    <button class="btn btn-pause btn-pause-toggle" id="top-pause-btn">Pause</button>
+
+    <!-- 1. ROLE SELECTION -->
+    <div id="screen-role" class="screen active">
+        <h1>Select Role</h1>
+        <button class="btn" onclick="setRole('attacker')">ATTACKER</button>
+        <button class="btn" onclick="setRole('defender')">DEFENDER (View Only)</button>
+    </div>
+
+    <!-- 2. MAIN MENU (Attackers Only) -->
+    <div id="screen-menu" class="screen">
+        <h1>Game Setup</h1>
+        <div style="margin-bottom: 20px;">
+            <h3>Select Team</h3>
+            <button class="btn btn-red" onclick="selectTeam('red')">RED TEAM</button>
+            <button class="btn btn-blue" onclick="selectTeam('blue')">BLUE TEAM</button>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <h3>Select Mode</h3>
+            <button class="btn" onclick="selectMode('normal')">NORMAL MODE</button>
+            <button class="btn" onclick="selectMode('demo')">DEMO MODE</button>
+        </div>
+        <h2 id="setup-summary">Team: None | Mode: None</h2>
+        <button class="btn" style="background-color: #27ae60;" onclick="startGame()">START GAME</button>
+    </div>
+
+    <!-- 3. TRAVEL PHASE (Pre-CP) -->
+    <div id="screen-travel" class="screen">
+        <h1 id="travel-title">Traveling...</h1>
+        <div class="timers">
+            <div class="timer-label">Global Time Remaining</div>
+            <div class="timer-box global-timer" id="travel-global-time">105:00</div>
+        </div>
+        <p style="margin-bottom: 30px;">Physically move to the next Control Point.</p>
+        <button class="btn" style="background-color: #27ae60;" onclick="arriveAtPoint()">WE HAVE ARRIVED</button>
+    </div>
+
+    <!-- 4. CAPTURE PHASE (CP) -->
+    <div id="screen-capture" class="screen">
+        <h1 id="capture-title">Capturing CP1</h1>
+        <div class="timers">
+            <div>
+                <div class="timer-label">Global Time Remaining</div>
+                <div class="timer-box global-timer" id="capture-global-time">105:00</div>
+            </div>
+            <div>
+                <div class="timer-label">Capture Progress</div>
+                <div class="timer-box" id="capture-local-time">30:00</div>
+            </div>
+        </div>
         
-        <!-- 1. EKRANAS: ROLĖS PASIRINKIMAS -->
-        <div id="screen-role" class="flex flex-col items-center justify-center h-full p-6 text-center">
-            <h1 class="text-3xl font-bold mb-8">LITHILAS: CP RUSH</h1>
-            <p id="role-subtitle" class="mb-4 text-lg">Pasirinkite savo rolę:</p>
-            <button id="btn-role-main" onclick="selectRole('main')" class="w-full bg-blue-600 text-white py-4 rounded-xl text-xl font-bold mb-4 active:bg-blue-700">⚔️ PUOLĖJAS (Main)</button>
-            <button id="btn-role-view" onclick="selectRole('view')" class="w-full bg-red-600 text-white py-4 rounded-xl text-xl font-bold active:bg-red-700">🛡️ GYNĖJAS (View)</button>
+        <div class="capture-square" id="hold-square">
+            HOLD TO HACK
+        </div>
+        <div class="speed-indicator">2x SPEED ACTIVE</div>
+    </div>
+
+    <!-- 5. BASE CAPTURED INTERMISSION -->
+    <div id="screen-base" class="screen">
+        <h1>BASE CAPTURED!</h1>
+        <div class="timers">
+            <div class="timer-label">Global Time Remaining</div>
+            <div class="timer-box global-timer" id="base-global-time">105:00</div>
+        </div>
+        <p>You have secured the base. Prepare for the final control point.</p>
+        <button class="btn" style="background-color: #2980b9;" onclick="continueToBaseTravel()">CONTINUE</button>
+    </div>
+
+    <!-- 6. END SCREENS -->
+    <div id="screen-end" class="screen">
+        <h1 id="end-title" style="font-size: 4rem;">VICTORY</h1>
+        <p id="end-subtitle">All points captured in time.</p>
+        <button class="btn" onclick="resetApp()">Back to Menu</button>
+    </div>
+
+    <!-- 7. DEFENDER DASHBOARD -->
+    <div id="screen-defender" class="screen">
+        <h1>Defender Dashboard</h1>
+        <h2 id="def-team-display">Waiting for Attackers...</h2>
+        
+        <div class="timers">
+            <div>
+                <div class="timer-label">Defense Global Time Limit</div>
+                <div class="timer-box global-timer" id="def-global-time">105:00</div>
+            </div>
+            <div id="def-local-container" style="display: none;">
+                <div class="timer-label" id="def-local-label">Current Capture Timer</div>
+                <div class="timer-box" id="def-local-time">--:--</div>
+                <div id="def-speed-warning" style="color: #e74c3c; font-weight: bold; margin-top: 5px; display: none;" class="pulsing">ATTACKERS ARE HACKING (2x SPEED)</div>
+            </div>
         </div>
 
-        <!-- 2. EKRANAS: NUSTATYMAI (TIK PUOLĖJUI) -->
-        <div id="screen-setup" class="hidden flex-col items-center justify-center h-full p-6 text-center">
-            <h2 class="text-2xl font-bold mb-8">Puolėjų nustatymai</h2>
-            <p class="mb-2">Komandos spalva:</p>
-            <div class="flex gap-4 mb-12 w-full">
-                <button id="btn-color-red" onclick="setColor('Red')" class="flex-1 bg-red-500 text-white py-3 rounded-lg border-4 border-gray-800">Raudona</button>
-                <button id="btn-color-blue" onclick="setColor('Blue')" class="flex-1 bg-gray-400 text-white py-3 rounded-lg border-4 border-transparent">Mėlyna</button>
-            </div>
-            <button onclick="startGame(false)" class="w-full bg-green-500 text-white py-4 rounded-xl text-xl font-bold mb-4 active:bg-green-600">Start (Normal)</button>
-            <button onclick="startGame(true)" class="w-full bg-purple-600 text-white py-4 rounded-xl text-lg font-bold active:bg-purple-700">Pradėti Demo (3-2-1 min)</button>
-        </div>
-
-        <!-- 3. EKRANAS: ŽAIDIMAS -->
-        <div id="screen-game" class="hidden flex-col h-full p-4 relative">
-            
-            <div class="flex justify-between items-center mb-6">
-                <div class="text-lg font-bold">Laikas: <span id="ui-main-timer" class="text-xl font-mono">00:00:00</span></div>
-                <button id="btn-pause" onclick="togglePause()" class="hidden bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">PAUZĖ</button>
-            </div>
-
-            <!-- Gynėjų informacija (Skydai) -->
-            <div id="view-shields" class="hidden w-full bg-gray-100 p-4 rounded-xl mb-4 text-center border-2 border-red-500">
-                <h3 class="font-bold text-red-600 mb-2">Gynėjų statusas</h3>
-                <div class="flex justify-center gap-2 text-3xl">
-                    <span id="shield-1" class="opacity-30 grayscale">🛡️</span>
-                    <span id="shield-2" class="opacity-30 grayscale">🛡️</span>
-                </div>
-                <p id="shield-text" class="text-sm mt-2 font-semibold">Puolėjai dar neužėmė 1 CP</p>
-            </div>
-
-            <!-- Žaidimo statuso informacija -->
-            <div class="flex-1 flex flex-col items-center justify-center text-center">
-                <h2 id="ui-title" class="text-2xl font-bold mb-4 uppercase text-gray-900">Kraunama...</h2>
-                
-                <div id="ui-cp-container" class="hidden flex-col items-center mb-8">
-                    <p class="text-xl">Likęs laikas:</p>
-                    <p id="ui-cp-timer" class="text-4xl font-bold font-mono my-2">00:00</p>
-                    <p id="ui-speed" class="text-gray-500 font-bold">Laiko greitis: 1x</p>
-                </div>
-
-                <p id="ui-defender-info" class="hidden text-xl text-red-600 font-bold mb-4"></p>
-
-                <!-- Mygtukai Puolėjams -->
-                <button id="btn-proceed" onclick="proceedToNext()" class="hidden w-full bg-blue-600 text-white py-4 rounded-xl text-lg font-bold mt-8">Pradėti užėmimą</button>
-                
-                <div id="btn-accelerate" class="hidden w-full h-64 bg-gray-400 mt-auto rounded-xl flex items-center justify-center cursor-pointer no-touch-action">
-                    <span id="btn-accelerate-text" class="text-white text-3xl font-bold pointer-events-none">PAGREITINTI</span>
-                </div>
-
-                <button id="btn-restart" onclick="resetGame()" class="hidden w-full bg-gray-800 text-white py-4 rounded-xl text-lg font-bold mt-8">Žaisti iš naujo</button>
-            </div>
+        <div class="status-indicator" id="def-status">
+            Current Phase: Waiting to Start
         </div>
     </div>
 
-    <!-- FIREBASE LOGIKA -->
+    <!-- Firebase SDK (v10 Modular via CDN) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+        // Your specific Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
             authDomain: "cprush-2249a.firebaseapp.com",
@@ -91,393 +186,268 @@
             storageBucket: "cprush-2249a.firebasestorage.app",
             messagingSenderId: "40928992118",
             appId: "1:40928992118:web:86c09b9eab9d9539c67857",
-            databaseURL: "https://cprush-2249a-default-rtdb.europe-west1.firebasedatabase.app"
+            measurementId: "G-7N5M3W4ZYB"
         };
 
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
         const db = getDatabase(app);
-        const gameRef = ref(db, 'gameState');
+        const gameRef = ref(db, 'game');
 
-        // Būsenų konstantos
-        const S_MAIN = 'MAIN';
-        const S_PRE_CP1 = 'PRE_CP_1';
-        const S_CP1 = 'CP_1';
-        const S_PRE_CP2 = 'PRE_CP_2';
-        const S_CP2 = 'CP_2';
-        const S_BASE = 'BASE_CAPTURED';
-        const S_PRE_CP3 = 'PRE_CP_3';
-        const S_CP3 = 'CP_3';
-        const S_VICTORY = 'VICTORY';
-        const S_GAMEOVER = 'GAME_OVER';
-
-        // Globalūs kintamieji
-        let userRole = null; // 'main' arba 'view'
-        let gameLoop = null;
-
-        // Pradinė žaidimo būsena
-        let state = {
-            status: S_MAIN,
-            mainTime: 105 * 60,
-            cpTime: 0,
-            isPaused: false,
-            isDemo: false,
-            teamColor: 'Red',
-            isPressed: false
+        // Game Configuration
+        const TIMERS = {
+            global: 105 * 60,
+            normal: { cp1: 30 * 60, cp2: 20 * 60, cp3: 10 * 60 },
+            demo: { cp1: 3 * 60, cp2: 2 * 60, cp3: 1 * 60 }
         };
 
-        // --- SISTEMINĖS FUNKCIJOS ---
+        // Local State
+        let role = null; // 'attacker' or 'defender'
+        let setupTeam = null;
+        let setupMode = null;
+        let holdInterval = null;
+        let masterTickInterval = null;
 
-        function formatTime(sec) {
-            if (sec < 0) sec = 0;
-            const h = Math.floor(sec / 3600);
-            const m = Math.floor((sec % 3600) / 60);
-            const s = sec % 60;
-            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-        
-        function formatCPTime(sec) {
-            if (sec < 0) sec = 0;
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        }
+        // Firebase Sync State
+        let state = {
+            phase: 'menu', // menu, pre1, cp1, pre2, cp2, base, pre3, cp3, victory, gameover
+            globalTime: TIMERS.global,
+            cpTime: 0,
+            paused: false,
+            accelerated: false,
+            mode: 'normal',
+            team: 'red'
+        };
 
-        function switchScreen(screenId) {
-            document.getElementById('screen-role').classList.add('hidden');
-            document.getElementById('screen-setup').classList.add('hidden');
-            document.getElementById('screen-game').classList.add('hidden');
+        // --- UI Flow & Roles ---
+        window.setRole = (selectedRole) => {
+            role = selectedRole;
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             
-            document.getElementById('screen-setup').classList.remove('flex');
-            document.getElementById('screen-game').classList.remove('flex');
-
-            const target = document.getElementById(screenId);
-            target.classList.remove('hidden');
-            if (screenId !== 'screen-role') {
-                target.classList.add('flex');
+            if (role === 'attacker') {
+                document.getElementById('screen-menu').classList.add('active');
+                document.querySelectorAll('.btn-pause-toggle').forEach(el => el.style.display = 'block');
+            } else {
+                document.getElementById('screen-defender').classList.add('active');
             }
-        }
-
-        // --- FIREBASE SINCHRONIZACIJA ---
-
-        function syncToFirebase() {
-            if (userRole === 'main') {
-                set(gameRef, state).catch(e => console.error("Firebase klaida:", e));
-            }
-        }
-
-        function startListening() {
+            
+            // Listen to Firebase
             onValue(gameRef, (snapshot) => {
                 const data = snapshot.val();
-                if (data) state = data;
-                renderUI();
+                if (data) {
+                    state = data;
+                    updateUI();
+                }
             });
+        };
+
+        window.selectTeam = (team) => { setupTeam = team; updateSetupSummary(); };
+        window.selectMode = (mode) => { setupMode = mode; updateSetupSummary(); };
+        
+        function updateSetupSummary() {
+            document.getElementById('setup-summary').innerText = `Team: ${setupTeam || 'None'} | Mode: ${setupMode || 'None'}`;
         }
 
-        // --- ŽAIDIMO LOGIKA (TIK PUOLĖJUI) ---
+        // --- Attacker Game Controls ---
+        window.startGame = () => {
+            if (!setupTeam || !setupMode) return alert("Select Team and Mode first!");
+            state = {
+                phase: 'pre1',
+                globalTime: TIMERS.global,
+                cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1,
+                paused: false,
+                accelerated: false,
+                mode: setupMode,
+                team: setupTeam
+            };
+            pushState();
+            startMasterTick();
+        };
 
-        function startGameLoop() {
-            if (gameLoop) clearInterval(gameLoop);
+        window.arriveAtPoint = () => {
+            if (state.phase === 'pre1') state.phase = 'cp1';
+            else if (state.phase === 'pre2') state.phase = 'cp2';
+            else if (state.phase === 'pre3') state.phase = 'cp3';
+            pushState();
+        };
+
+        window.continueToBaseTravel = () => {
+            state.phase = 'pre3';
+            state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3;
+            pushState();
+        };
+
+        window.resetApp = () => { location.reload(); };
+
+        // --- Pause Mechanic ---
+        const togglePause = () => {
+            if (!role || role !== 'attacker') return;
+            state.paused = !state.paused;
+            pushState();
+        };
+        document.querySelectorAll('.btn-pause-toggle').forEach(btn => btn.addEventListener('click', togglePause));
+
+        // --- Master Game Loop (Runs only on Attacker's Device) ---
+        function startMasterTick() {
+            if (masterTickInterval) clearInterval(masterTickInterval);
             
-            let tick = 0;
-            // Ciklas veikia kas 500ms
-            gameLoop = setInterval(() => {
-                if (state.status === S_VICTORY || state.status === S_GAMEOVER) return;
+            masterTickInterval = setInterval(() => {
+                if (state.paused || state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return;
 
-                if (!state.isPaused) {
-                    tick++;
-                    let stateChanged = false;
-
-                    // Pagrindinis laikas mažėja kas sekundę (kas 2 ciklą)
-                    if (tick % 2 === 0 && state.mainTime > 0) {
-                        state.mainTime--;
-                        stateChanged = true;
-                    }
-
-                    // Pralaimėjimo sąlyga
-                    if (state.mainTime <= 0 && state.status !== S_VICTORY) {
-                        state.status = S_GAMEOVER;
-                        stateChanged = true;
-                    }
-
-                    // CP laiko mažinimas
-                    if (state.status === S_CP1 || state.status === S_CP2 || state.status === S_CP3) {
-                        // Jei paspausta - mažiname kas 500ms, jei ne - kas 1s
-                        if (state.isPressed || tick % 2 === 0) {
-                            state.cpTime--;
-                            stateChanged = true;
-                        }
-
-                        // Užėmimo sąlygos
-                        if (state.cpTime <= 0) {
-                            if (state.status === S_CP1) state.status = S_PRE_CP2;
-                            else if (state.status === S_CP2) state.status = S_BASE;
-                            else if (state.status === S_CP3) state.status = S_VICTORY;
-                            stateChanged = true;
-                        }
-                    }
-
-                    // Išsiunčiame pakeitimus tik jei kažkas pasikeitė, kad neapkrautume serverio
-                    if (stateChanged) {
-                        syncToFirebase();
-                        renderUI();
-                    }
-                }
-            }, 500);
-        }
-
-        // --- NAUDOTOJO SĄSAJOS ATNAUJINIMAS ---
-
-        function renderUI() {
-            // Laikrodžiai
-            document.getElementById('ui-main-timer').innerText = formatTime(state.mainTime);
-            document.getElementById('ui-cp-timer').innerText = formatCPTime(state.cpTime);
-            
-            // UI Elementų nuorodos
-            const title = document.getElementById('ui-title');
-            const cpContainer = document.getElementById('ui-cp-container');
-            const btnProceed = document.getElementById('btn-proceed');
-            const btnAccelerate = document.getElementById('btn-accelerate');
-            const btnRestart = document.getElementById('btn-restart');
-            const defInfo = document.getElementById('ui-defender-info');
-            const speedText = document.getElementById('ui-speed');
-            const btnPause = document.getElementById('btn-pause');
-
-            // Reset UI
-            title.className = "text-2xl font-bold mb-4 uppercase text-gray-900";
-            cpContainer.classList.add('hidden');
-            btnProceed.classList.add('hidden');
-            btnAccelerate.classList.add('hidden');
-            btnRestart.classList.add('hidden');
-            defInfo.classList.add('hidden');
-
-            // Pauzės mygtuko logika
-            if (userRole === 'main') {
-                btnPause.classList.remove('hidden');
-                btnPause.innerText = state.isPaused ? "TĘSTI" : "PAUZĖ";
-                btnPause.className = state.isPaused ? "bg-red-600 text-white px-4 py-2 rounded-lg font-bold" : "bg-blue-600 text-white px-4 py-2 rounded-lg font-bold";
-            }
-
-            // Pagreičio mygtuko būsena (vizualiai)
-            if (userRole === 'main') {
-                if (state.isPaused) {
-                    btnAccelerate.style.backgroundColor = '#9ca3af';
-                    document.getElementById('btn-accelerate-text').innerText = "PAUZĖ";
-                } else if (state.isPressed) {
-                    btnAccelerate.style.backgroundColor = state.teamColor === 'Red' ? '#ef4444' : '#3b82f6';
-                    document.getElementById('btn-accelerate-text').innerText = "GREIČIAU!";
-                } else {
-                    btnAccelerate.style.backgroundColor = '#9ca3af'; // Pilka
-                    document.getElementById('btn-accelerate-text').innerText = "PAGREITINTI";
-                }
-            }
-
-            speedText.innerText = `Laiko greitis: ${state.isPressed && !state.isPaused ? '2x' : '1x'}`;
-
-            // Būsenų atvaizdavimas
-            switch (state.status) {
-                case S_MAIN:
-                    title.innerText = "Laukiama žaidimo starto...";
-                    if (userRole === 'view') { defInfo.innerText = "Puolėjai dar nepradėjo žaidimo."; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_PRE_CP1:
-                    title.innerText = "Keliaukite prie 1 KONTROLINIO TAŠKO";
-                    if (userRole === 'main') { btnProceed.innerText = "Pradėti 1 taško užėmimą"; btnProceed.classList.remove('hidden'); }
-                    else { defInfo.innerText = "Puolėjai keliauja prie 1 CP"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_CP1:
-                    title.innerText = "1 KONTROLINIS TAŠKAS";
-                    cpContainer.classList.remove('hidden'); cpContainer.classList.add('flex');
-                    if (userRole === 'main') btnAccelerate.classList.remove('hidden');
-                    else { defInfo.innerText = "⚠️ PUOLĖJAI UŽIMINĖJA 1 CP!"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_PRE_CP2:
-                    title.innerText = "Keliaukite prie 2 KONTROLINIO TAŠKO";
-                    if (userRole === 'main') { btnProceed.innerText = "Pradėti 2 taško užėmimą"; btnProceed.classList.remove('hidden'); }
-                    else { defInfo.innerText = "Puolėjai keliauja prie 2 CP"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_CP2:
-                    title.innerText = "2 KONTROLINIS TAŠKAS";
-                    cpContainer.classList.remove('hidden'); cpContainer.classList.add('flex');
-                    if (userRole === 'main') btnAccelerate.classList.remove('hidden');
-                    else { defInfo.innerText = "⚠️ PUOLĖJAI UŽIMINĖJA 2 CP!"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_BASE:
-                    title.innerText = "JŪSŲ BAZĖ DABAR YRA 1 CP";
-                    if (userRole === 'main') { btnProceed.innerText = "Tęsti į 3 CP"; btnProceed.classList.remove('hidden'); }
-                    else { defInfo.innerText = "Puolėjai užėmė 2 CP!"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_PRE_CP3:
-                    title.innerText = "Keliaukite prie 3 KONTROLINIO TAŠKO";
-                    if (userRole === 'main') { btnProceed.innerText = "Pradėti 3 taško užėmimą"; btnProceed.classList.remove('hidden'); }
-                    else { defInfo.innerText = "Puolėjai keliauja prie 3 CP (Finalas)"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_CP3:
-                    title.innerText = "3 KONTROLINIS TAŠKAS";
-                    cpContainer.classList.remove('hidden'); cpContainer.classList.add('flex');
-                    if (userRole === 'main') btnAccelerate.classList.remove('hidden');
-                    else { defInfo.innerText = "🚨 PUOLĖJAI UŽIMINĖJA FINALINĮ TAŠKĄ!"; defInfo.classList.remove('hidden'); }
-                    break;
-                case S_VICTORY:
-                    title.innerText = "SVEIKINAME!\nPuolėjai laimėjo!";
-                    title.className = "text-3xl font-bold mb-4 text-green-600";
-                    if (userRole === 'main') btnRestart.classList.remove('hidden');
-                    break;
-                case S_GAMEOVER:
-                    title.innerText = "PRALAIMĖJOTE!\nLaikas baigėsi (Gynėjai laimėjo)";
-                    title.className = "text-3xl font-bold mb-4 text-red-600";
-                    if (userRole === 'main') btnRestart.classList.remove('hidden');
-                    break;
-            }
-
-            // Gynėjų skydų valdymas
-            if (userRole === 'view') {
-                const s1 = document.getElementById('shield-1');
-                const s2 = document.getElementById('shield-2');
-                const sText = document.getElementById('shield-text');
+                // Tick Global Time
+                state.globalTime--;
                 
-                s1.classList.add('opacity-30', 'grayscale');
-                s2.classList.add('opacity-30', 'grayscale');
+                if (state.globalTime <= 0) {
+                    state.globalTime = 0;
+                    state.phase = 'gameover';
+                    pushState();
+                    clearInterval(masterTickInterval);
+                    return;
+                }
 
-                if (state.status === S_PRE_CP2 || state.status === S_CP2) {
-                    s1.classList.remove('opacity-30', 'grayscale');
-                    sText.innerText = "Aktyvus 1 skydas (Prarastas 1 CP)";
-                } else if ([S_BASE, S_PRE_CP3, S_CP3, S_VICTORY].includes(state.status)) {
-                    s1.classList.remove('opacity-30', 'grayscale');
-                    s2.classList.remove('opacity-30', 'grayscale');
-                    sText.innerText = "Aktyvūs 2 skydai! (Prarasti 2 CP)";
-                } else if (state.status === S_GAMEOVER) {
-                    sText.innerText = "ŽAIDIMAS BAIGTAS";
-                } else if (state.status === S_MAIN) {
-                    sText.innerText = "Laukiama žaidėjų";
+                // Tick Capture Time if in CP phase
+                if (state.phase.startsWith('cp')) {
+                    // Deduct 2 seconds if holding, otherwise 1
+                    let deduction = state.accelerated ? 2 : 1;
+                    state.cpTime -= deduction;
+
+                    if (state.cpTime <= 0) {
+                        state.cpTime = 0;
+                        handleCaptureComplete();
+                    }
+                }
+                pushState();
+            }, 1000);
+        }
+
+        function handleCaptureComplete() {
+            if (state.phase === 'cp1') {
+                state.phase = 'pre2';
+                state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2;
+            } else if (state.phase === 'cp2') {
+                state.phase = 'base';
+            } else if (state.phase === 'cp3') {
+                state.phase = 'victory';
+            }
+        }
+
+        // --- Hold Mechanic (Attackers) ---
+        const square = document.getElementById('hold-square');
+        
+        const startHold = (e) => {
+            e.preventDefault();
+            if (state.paused || !state.phase.startsWith('cp')) return;
+            square.classList.add('holding');
+            state.accelerated = true;
+            pushState();
+        };
+
+        const stopHold = (e) => {
+            e.preventDefault();
+            square.classList.remove('holding');
+            state.accelerated = false;
+            pushState();
+        };
+
+        square.addEventListener('mousedown', startHold);
+        square.addEventListener('touchstart', startHold);
+        square.addEventListener('mouseup', stopHold);
+        square.addEventListener('mouseleave', stopHold);
+        square.addEventListener('touchend', stopHold);
+
+        // --- Firebase Push ---
+        function pushState() {
+            if (role === 'attacker') {
+                set(gameRef, state);
+                updateUI(); // Local update instantly to prevent UI lag
+            }
+        }
+
+        // --- UI Rendering ---
+        function updateUI() {
+            // Handle Pause Overlay
+            const overlay = document.getElementById('paused-overlay');
+            overlay.style.display = state.paused ? 'flex' : 'none';
+
+            const formattedGlobal = formatTime(state.globalTime);
+            const formattedLocal = formatTime(state.cpTime);
+
+            if (role === 'attacker') {
+                document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+                
+                if (state.phase === 'menu') {
+                    document.getElementById('screen-menu').classList.add('active');
+                } else if (state.phase.startsWith('pre')) {
+                    document.getElementById('screen-travel').classList.add('active');
+                    const num = state.phase.replace('pre', '');
+                    document.getElementById('travel-title').innerText = `Traveling to CP${num}`;
+                    document.getElementById('travel-global-time').innerText = formattedGlobal;
+                } else if (state.phase.startsWith('cp')) {
+                    document.getElementById('screen-capture').classList.add('active');
+                    document.getElementById('capture-title').innerText = `Capturing CP${state.phase.replace('cp', '')}`;
+                    document.getElementById('capture-global-time').innerText = formattedGlobal;
+                    document.getElementById('capture-local-time').innerText = formattedLocal;
+                    
+                    if(state.team === 'red') square.style.backgroundColor = state.accelerated ? '#c0392b' : 'var(--red-team)';
+                    else square.style.backgroundColor = state.accelerated ? '#2980b9' : 'var(--blue-team)';
+                } else if (state.phase === 'base') {
+                    document.getElementById('screen-base').classList.add('active');
+                    document.getElementById('base-global-time').innerText = formattedGlobal;
+                } else if (state.phase === 'victory' || state.phase === 'gameover') {
+                    document.getElementById('screen-end').classList.add('active');
+                    const endTitle = document.getElementById('end-title');
+                    const endSub = document.getElementById('end-subtitle');
+                    if (state.phase === 'victory') {
+                        endTitle.innerText = "VICTORY";
+                        endTitle.style.color = "#2ecc71";
+                        endSub.innerText = `The ${state.team} team secured all points!`;
+                    } else {
+                        endTitle.innerText = "GAME OVER";
+                        endTitle.style.color = "#e74c3c";
+                        endSub.innerText = "The Defenders successfully held the territory. Time ran out.";
+                    }
+                }
+            } else if (role === 'defender') {
+                // Defender Read-Only Updates
+                document.getElementById('def-team-display').innerText = state.team === 'red' ? '🔴 RED TEAM ATTACKING' : '🔵 BLUE TEAM ATTACKING';
+                document.getElementById('def-global-time').innerText = formattedGlobal;
+                
+                const statusDiv = document.getElementById('def-status');
+                const localContainer = document.getElementById('def-local-container');
+                const speedWarning = document.getElementById('def-speed-warning');
+
+                const phaseMap = {
+                    menu: "Waiting for Attackers to Start",
+                    pre1: "Attackers traveling to CP1", cp1: "Defend CP1!",
+                    pre2: "Attackers traveling to CP2", cp2: "Defend CP2!",
+                    base: "Base Captured by Attackers - Waiting to travel",
+                    pre3: "Attackers traveling to Final CP", cp3: "Defend Final CP!",
+                    victory: "DEFEAT - Attackers captured all points.",
+                    gameover: "VICTORY - You successfully defended the territory!"
+                };
+
+                statusDiv.innerText = `Phase: ${phaseMap[state.phase] || ''}`;
+
+                if (state.phase.startsWith('cp')) {
+                    localContainer.style.display = 'block';
+                    document.getElementById('def-local-time').innerText = formattedLocal;
+                    speedWarning.style.display = state.accelerated ? 'block' : 'none';
+                    statusDiv.style.backgroundColor = 'var(--red-team)';
                 } else {
-                    sText.innerText = "Puolėjai dar neužėmė 1 CP";
+                    localContainer.style.display = 'none';
+                    statusDiv.style.backgroundColor = 'rgba(255,255,255,0.1)';
                 }
             }
         }
 
-        // --- GLOBALŪS MYGTUKŲ IVYKIAI KVIEČIAMI IŠ HTML ---
-
-        window.selectRole = (role) => {
-            userRole = role;
-            const roleBtn = document.getElementById('btn-role-main');
-            const origText = roleBtn.innerText;
-            
-            if (role === 'main') {
-                roleBtn.innerText = "⏳ Jungiamasi...";
-                roleBtn.disabled = true;
-
-                // Patikriname Firebase ar nėra aktyvaus žaidimo
-                get(gameRef).then((snapshot) => {
-                    const data = snapshot.val();
-                    if (data && data.status !== S_MAIN && data.status !== S_VICTORY && data.status !== S_GAMEOVER) {
-                        // Žaidimas jau vyksta - grąžiname į ekraną
-                        state = data;
-                        switchScreen('screen-game');
-                        renderUI();
-                        startListening();
-                        startGameLoop();
-                    } else {
-                        // Naujas žaidimas
-                        switchScreen('screen-setup');
-                    }
-                    roleBtn.innerText = origText;
-                    roleBtn.disabled = false;
-                }).catch((e) => {
-                    console.error(e);
-                    switchScreen('screen-setup'); // Leidžiame tęsti nepaisant klaidos
-                });
-            } else {
-                // View rolė
-                switchScreen('screen-game');
-                document.getElementById('view-shields').classList.remove('hidden');
-                renderUI();
-                startListening();
-            }
-        };
-
-        window.setColor = (color) => {
-            state.teamColor = color;
-            document.getElementById('btn-color-red').classList.replace(color === 'Red' ? 'border-transparent' : 'border-gray-800', color === 'Red' ? 'border-gray-800' : 'border-transparent');
-            document.getElementById('btn-color-red').classList.replace(color === 'Red' ? 'bg-gray-400' : 'bg-red-500', color === 'Red' ? 'bg-red-500' : 'bg-gray-400');
-            
-            document.getElementById('btn-color-blue').classList.replace(color === 'Blue' ? 'border-transparent' : 'border-gray-800', color === 'Blue' ? 'border-gray-800' : 'border-transparent');
-            document.getElementById('btn-color-blue').classList.replace(color === 'Blue' ? 'bg-gray-400' : 'bg-blue-500', color === 'Blue' ? 'bg-blue-500' : 'bg-gray-400');
-        };
-
-        window.startGame = (isDemo) => {
-            state.isDemo = isDemo;
-            state.mainTime = 105 * 60;
-            state.status = S_PRE_CP1;
-            state.isPaused = false;
-            
-            switchScreen('screen-game');
-            syncToFirebase();
-            renderUI();
-            startListening(); // Leidžia matyti pokyčius, jei atsijungtų/prisijungtų
-            startGameLoop();
-        };
-
-        window.togglePause = () => {
-            state.isPaused = !state.isPaused;
-            syncToFirebase();
-            renderUI();
-        };
-
-        window.proceedToNext = () => {
-            if (state.status === S_PRE_CP1) {
-                state.status = S_CP1;
-                state.cpTime = (state.isDemo ? 3 : 30) * 60;
-            } else if (state.status === S_PRE_CP2) {
-                state.status = S_CP2;
-                state.cpTime = (state.isDemo ? 2 : 20) * 60;
-            } else if (state.status === S_BASE) {
-                state.status = S_PRE_CP3;
-            } else if (state.status === S_PRE_CP3) {
-                state.status = S_CP3;
-                state.cpTime = (state.isDemo ? 1 : 10) * 60;
-            }
-            syncToFirebase();
-            renderUI();
-        };
-
-        window.resetGame = () => {
-            if (gameLoop) clearInterval(gameLoop);
-            state.status = S_MAIN;
-            state.mainTime = 105 * 60;
-            state.cpTime = 0;
-            state.isPaused = false;
-            state.isPressed = false;
-            
-            syncToFirebase();
-            location.reload(); // Perkrauna puslapį
-        };
-
-        // --- SAUGŪS POINTER ĮVYKIAI (2x Greičiui) ---
-        // Naudojami "pointer" įvykiai, kurie veikia vienodai stabiliai tiek pelėms, tiek telefonams.
-        const accBtn = document.getElementById('btn-accelerate');
-
-        const pointerDownHandler = (e) => {
-            if (state.isPaused || userRole !== 'main') return;
-            state.isPressed = true;
-            syncToFirebase();
-            renderUI();
-        };
-
-        const pointerUpHandler = (e) => {
-            if (userRole !== 'main') return;
-            state.isPressed = false;
-            syncToFirebase();
-            renderUI();
-        };
-
-        accBtn.addEventListener('pointerdown', pointerDownHandler);
-        // pointerup užsifiksuoja atleidus paspaudimą
-        accBtn.addEventListener('pointerup', pointerUpHandler);
-        // pointercancel padeda apsaugoti nuo naršyklės avarijų (jei ekranas išsijungia ir pan.)
-        accBtn.addEventListener('pointercancel', pointerUpHandler);
-        // pointerout užsifiksuoja jei pirštas/pelė nuslysta nuo mygtuko
-        accBtn.addEventListener('pointerout', pointerUpHandler);
-
+        // Helper
+        function formatTime(totalSeconds) {
+            if(totalSeconds < 0) totalSeconds = 0;
+            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const s = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
     </script>
 </body>
 </html>
