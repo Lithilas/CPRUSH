@@ -255,11 +255,10 @@
             }
 
             if (role) {
-                // If attacker sees the game is running and timer isn't ticking, start ticking
-                if (role === 'attacker' && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
+                // If attacker or GM sees the game is running globally and master timer isn't active on this thread, spin it up
+                if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
                     startMasterTick();
                 }
-                // If game resets, stop ticking locally
                 if (state.phase === 'menu' && masterTickInterval) {
                     clearInterval(masterTickInterval);
                     masterTickInterval = null;
@@ -281,6 +280,8 @@
             role = selectedRole;
             if (role === 'attacker') {
                 document.getElementById('top-pause-btn').style.display = 'block';
+            } else {
+                document.getElementById('top-pause-btn').style.display = 'none';
             }
             updateUI();
         };
@@ -293,9 +294,10 @@
             document.getElementById('gm-setup-summary').innerText = `Setup: ${setupTeam || 'None'} / ${setupMode || 'None'}`;
         }
 
-        // --- Attacker specific controls ---
+        // --- Attacker game initialization ---
         window.startGame = () => {
             if (!setupTeam || !setupMode) return alert("Select Team and Mode first!");
+            // Attackers start at the physical travel screen
             state = { phase: 'pre1', globalTime: TIMERS.global, cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, paused: false, mode: setupMode, team: setupTeam };
             pushState();
             startMasterTick();
@@ -314,12 +316,22 @@
             pushState();
         };
 
-        // --- GM specific controls ---
+        // --- Game Master exact initialization override ---
         window.gmStartGame = () => {
             if (state.phase !== 'menu' && !confirm("Game is already running! Force restart?")) return;
             if (!setupTeam || !setupMode) return alert("Select Team and Mode in Setup first!");
-            state = { phase: 'pre1', globalTime: TIMERS.global, cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, paused: false, mode: setupMode, team: setupTeam };
-            pushState(); // pushes to DB, attacker phone will pick up the tick automatically
+            
+            // FIXED: GM skips 'pre1' (travel room) entirely, launching the active capture grid right away
+            state = { 
+                phase: 'cp1', 
+                globalTime: TIMERS.global, 
+                cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, 
+                paused: false, 
+                mode: setupMode, 
+                team: setupTeam 
+            };
+            pushState();
+            startMasterTick();
         };
 
         window.gmResetApp = () => {
@@ -400,7 +412,6 @@
         }
 
         function pushState() {
-            // Both attacker and GM have permission to push state updates
             if (role === 'attacker' || role === 'gm') {
                 set(gameRef, state).catch(err => console.error(err));
                 updateUI(); 
@@ -410,7 +421,8 @@
         // --- UI Rendering ---
         function updateUI() {
             const overlay = document.getElementById('paused-overlay');
-            overlay.style.display = state.paused ? 'flex' : 'none';
+            // Show pause overlay to everyone EXCEPT the Game master so they can still manage controls
+            overlay.style.display = (state.paused && role !== 'gm') ? 'flex' : 'none';
 
             const formattedGlobal = formatTime(state.globalTime);
             const formattedLocal = formatTime(state.cpTime);
