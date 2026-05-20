@@ -77,8 +77,14 @@
     <!-- Attacker Pause Button -->
     <button class="btn btn-pause btn-pause-toggle" id="top-pause-btn">Pause</button>
 
+    <!-- 0. LOADING SCREEN -->
+    <div id="screen-loading" class="screen active">
+        <h1>Connecting...</h1>
+        <p>Synchronizing with Firebase server</p>
+    </div>
+
     <!-- 1. ROLE SELECTION -->
-    <div id="screen-role" class="screen active">
+    <div id="screen-role" class="screen">
         <h1>Select Role</h1>
         <button class="btn" onclick="setRole('attacker')">ATTACKER</button>
         <button class="btn" onclick="setRole('defender')">DEFENDER (View Only)</button>
@@ -172,13 +178,13 @@
         </div>
     </div>
 
-    <!-- Firebase SDK (v10 Modular via CDN) -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Your specific Firebase configuration
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
             authDomain: "cprush-2249a.firebaseapp.com",
@@ -206,12 +212,12 @@
         let role = null; // 'attacker' or 'defender'
         let setupTeam = null;
         let setupMode = null;
-        let holdInterval = null;
         let masterTickInterval = null;
+        let isInitialized = false;
 
-        // Firebase Sync State
+        // Firebase Sync State (Default)
         let state = {
-            phase: 'menu', // menu, pre1, cp1, pre2, cp2, base, pre3, cp3, victory, gameover
+            phase: 'menu', 
             globalTime: TIMERS.global,
             cpTime: 0,
             paused: false,
@@ -220,26 +226,47 @@
             team: 'red'
         };
 
+        // --- Global Firebase Listener ---
+        // This fires immediately when the page loads, pulling the global state
+        onValue(gameRef, (snapshot) => {
+            const data = snapshot.val();
+            
+            if (data) {
+                state = data;
+            } else {
+                // If database is completely empty, seed it with the default state
+                set(gameRef, state);
+            }
+
+            // Hide loading screen on first successful fetch
+            if (!isInitialized) {
+                isInitialized = true;
+                document.getElementById('screen-loading').classList.remove('active');
+                if (!role) {
+                    document.getElementById('screen-role').classList.add('active');
+                }
+            }
+
+            // If user has already selected a role, update the UI dynamically
+            if (role) {
+                // If Attacker refreshes the page mid-game, resume the clock
+                if (role === 'attacker' && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
+                    startMasterTick();
+                }
+                updateUI();
+            }
+        });
+
         // --- UI Flow & Roles ---
         window.setRole = (selectedRole) => {
             role = selectedRole;
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
             
             if (role === 'attacker') {
-                document.getElementById('screen-menu').classList.add('active');
                 document.querySelectorAll('.btn-pause-toggle').forEach(el => el.style.display = 'block');
-            } else {
-                document.getElementById('screen-defender').classList.add('active');
             }
             
-            // Listen to Firebase
-            onValue(gameRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    state = data;
-                    updateUI();
-                }
-            });
+            // Force an immediate UI update based on the currently synced state
+            updateUI();
         };
 
         window.selectTeam = (team) => { setupTeam = team; updateSetupSummary(); };
@@ -278,7 +305,23 @@
             pushState();
         };
 
-        window.resetApp = () => { location.reload(); };
+        window.resetApp = () => {
+            // Only the attacker resets the global database
+            if (role === 'attacker') {
+                const resetState = {
+                    phase: 'menu',
+                    globalTime: TIMERS.global,
+                    cpTime: 0,
+                    paused: false,
+                    accelerated: false,
+                    mode: 'normal',
+                    team: 'red'
+                };
+                set(gameRef, resetState).then(() => location.reload());
+            } else {
+                location.reload();
+            }
+        };
 
         // --- Pause Mechanic ---
         const togglePause = () => {
@@ -373,9 +416,10 @@
             const formattedGlobal = formatTime(state.globalTime);
             const formattedLocal = formatTime(state.cpTime);
 
+            // Hide all screens first to prevent overlap
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+
             if (role === 'attacker') {
-                document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-                
                 if (state.phase === 'menu') {
                     document.getElementById('screen-menu').classList.add('active');
                 } else if (state.phase.startsWith('pre')) {
@@ -409,6 +453,9 @@
                     }
                 }
             } else if (role === 'defender') {
+                // Ensure Defender dashboard is visible
+                document.getElementById('screen-defender').classList.add('active');
+                
                 // Defender Read-Only Updates
                 document.getElementById('def-team-display').innerText = state.team === 'red' ? '🔴 RED TEAM ATTACKING' : '🔵 BLUE TEAM ATTACKING';
                 document.getElementById('def-global-time').innerText = formattedGlobal;
@@ -418,11 +465,11 @@
                 const speedWarning = document.getElementById('def-speed-warning');
 
                 const phaseMap = {
-                    menu: "Waiting for Attackers to Start",
-                    pre1: "Attackers traveling to CP1", cp1: "Defend CP1!",
-                    pre2: "Attackers traveling to CP2", cp2: "Defend CP2!",
+                    menu: "Waiting for Attackers to Start...",
+                    pre1: "Attackers traveling to CP1", cp1: "Defending CP1!",
+                    pre2: "Attackers traveling to CP2", cp2: "Defending CP2!",
                     base: "Base Captured by Attackers - Waiting to travel",
-                    pre3: "Attackers traveling to Final CP", cp3: "Defend Final CP!",
+                    pre3: "Attackers traveling to Final CP", cp3: "Defending Final CP!",
                     victory: "DEFEAT - Attackers captured all points.",
                     gameover: "VICTORY - You successfully defended the territory!"
                 };
