@@ -56,7 +56,7 @@
 
             <!-- Dynamic Status Area -->
             <div class="flex-1 flex flex-col items-center justify-center text-center">
-                <h2 id="ui-status-title" class="text-2xl font-bold mb-4 uppercase">Keliaukite prie 1 CP</h2>
+                <h2 id="ui-status-title" class="text-2xl font-bold mb-4 uppercase text-gray-900">Keliaukite prie 1 CP</h2>
                 
                 <div id="ui-cp-timer-container" class="hidden flex-col items-center mb-8">
                     <p class="text-xl">Likęs laikas:</p>
@@ -80,12 +80,10 @@
 
     <!-- Firebase Logic -->
     <script type="module">
-        // Using CDN links for direct browser execution
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Your specific Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
             authDomain: "cprush-2249a.firebaseapp.com",
@@ -94,17 +92,14 @@
             messagingSenderId: "40928992118",
             appId: "1:40928992118:web:86c09b9eab9d9539c67857",
             measurementId: "G-7N5M3W4ZYB",
-            // I added the databaseURL for the EU region. If your database is in the US, change "europe-west1.firebasedatabase.app" to "firebaseio.com"
             databaseURL: "https://cprush-2249a-default-rtdb.europe-west1.firebasedatabase.app"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
         const db = getDatabase(app);
         const gameRef = ref(db, 'gameState');
 
-        // State Enums
         const States = {
             MAIN: 'MAIN',
             PRE_CP_1: 'PRE_CONTROL_POINT_1',
@@ -121,6 +116,7 @@
         let userRole = null;
         let gameLoop = null;
 
+        // Default initial state
         let state = {
             status: States.MAIN,
             mainTime: 105 * 60,
@@ -148,6 +144,9 @@
                 screens.game.classList.remove('hidden');
                 screens.game.classList.add('flex');
                 document.getElementById('view-shields').classList.remove('hidden');
+                
+                // Immediately render the default state (1:45:00) so it doesn't show 00:00:00
+                renderUI(); 
                 listenToFirebase(); 
             }
         };
@@ -260,9 +259,7 @@
 
         function updateFirebase() {
             if (userRole === 'main') {
-                set(gameRef, state).catch(error => {
-                    console.error("Firebase write error:", error);
-                });
+                set(gameRef, state).catch(error => console.error(error));
             }
         }
 
@@ -271,29 +268,41 @@
                 const data = snapshot.val();
                 if (data) {
                     state = data;
-                    renderUI();
                 }
+                // Call render even if data is null, to keep UI from breaking
+                renderUI();
             });
         }
 
         function formatTime(totalSeconds) {
+            if (isNaN(totalSeconds) || totalSeconds < 0) return "00:00:00";
             const h = Math.floor(totalSeconds / 3600);
             const m = Math.floor((totalSeconds % 3600) / 60);
             const s = totalSeconds % 60;
             return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
+        
         function formatCPTime(totalSeconds) {
+            if (isNaN(totalSeconds) || totalSeconds < 0) return "00:00";
             const m = Math.floor(totalSeconds / 60);
             const s = totalSeconds % 60;
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
         function renderUI() {
-            document.getElementById('ui-main-timer').innerText = formatTime(state.mainTime);
-            document.getElementById('ui-cp-timer').innerText = formatCPTime(state.cpTime);
+            const title = document.getElementById('ui-status-title');
+            
+            // Reset text color (in case game was restarted after a win/loss)
+            title.className = "text-2xl font-bold mb-4 uppercase text-gray-900";
+
+            // Fallbacks to 0 if data is missing
+            const currentMainTime = state.mainTime || 0;
+            const currentCpTime = state.cpTime || 0;
+
+            document.getElementById('ui-main-timer').innerText = formatTime(currentMainTime);
+            document.getElementById('ui-cp-timer').innerText = formatCPTime(currentCpTime);
             document.getElementById('ui-speed').innerText = `Laiko greitis: ${state.isPressed && !state.isPaused ? '2x' : '1x'}`;
 
-            const title = document.getElementById('ui-status-title');
             const cpContainer = document.getElementById('ui-cp-timer-container');
             const proceedBtn = document.getElementById('btn-proceed');
             const accBtnUI = document.getElementById('btn-accelerate');
@@ -310,6 +319,13 @@
             }
 
             switch (state.status) {
+                case States.MAIN:
+                    title.innerText = "LAUKIAMAS STARTAS...";
+                    if (userRole === 'view') { 
+                        defenderInfo.innerText = "Puolėjai dar nepradėjo žaidimo."; 
+                        defenderInfo.classList.remove('hidden'); 
+                    }
+                    break;
                 case States.PRE_CP_1:
                     title.innerText = "Keliaukite prie 1 KONTROLINIO TAŠKO";
                     if (userRole === 'main') { proceedBtn.innerText = "Pradėti 1 taško užėmimą"; proceedBtn.classList.remove('hidden'); }
@@ -378,6 +394,8 @@
                     text.innerText = "Aktyvūs 2 skydai! (Prarasti 2 CP)";
                 } else if (state.status === States.GAME_OVER) {
                     text.innerText = "ŽAIDIMAS BAIGTAS";
+                } else if (state.status === States.MAIN) {
+                    text.innerText = "Laukiama žaidėjų";
                 } else {
                     text.innerText = "Puolėjai dar neužėmė 1 CP";
                 }
