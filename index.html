@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lithilas CP RUSH</title>
-    <!-- Tailwind CSS for styling -->
+    <!-- Tailwind CSS greitam dizainui -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Prevent accidental text selection when tapping buttons rapidly */
         body { user-select: none; -webkit-user-select: none; }
         .hidden { display: none !important; }
     </style>
@@ -16,7 +15,7 @@
 
     <div id="app" class="bg-white w-full max-w-md h-full sm:h-[800px] sm:rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
         
-        <!-- ROLE SELECTION SCREEN -->
+        <!-- ================= EKRANAS: ROLĖS PASIRINKIMAS ================= -->
         <div id="screen-role" class="flex flex-col items-center justify-center h-full p-6 text-center">
             <h1 class="text-3xl font-bold mb-8">LITHILAS: CP RUSH</h1>
             <p class="mb-4 text-lg">Pasirinkite savo rolę:</p>
@@ -24,7 +23,7 @@
             <button onclick="selectRole('view')" class="w-full bg-red-600 text-white py-4 rounded-xl text-xl font-bold active:bg-red-700">🛡️ GYNĖJAS (View)</button>
         </div>
 
-        <!-- MAIN (ATTACKER) SETUP SCREEN -->
+        <!-- ================= EKRANAS: PUOLĖJO (MAIN) NUSTATYMAI ================= -->
         <div id="screen-setup" class="hidden flex-col items-center justify-center h-full p-6 text-center">
             <h2 class="text-2xl font-bold mb-8">Puolėjų nustatymai</h2>
             <p class="mb-2">Komandos spalva:</p>
@@ -36,7 +35,7 @@
             <button onclick="startGame(true)" class="w-full bg-purple-600 text-white py-4 rounded-xl text-lg font-bold active:bg-purple-700">Pradėti Demo (3-2-1 min)</button>
         </div>
 
-        <!-- ACTIVE GAME SCREEN -->
+        <!-- ================= EKRANAS: AKTYVUS ŽAIDIMAS ================= -->
         <div id="screen-game" class="hidden flex-col h-full p-4 relative">
             
             <div class="flex justify-between items-center mb-6">
@@ -44,7 +43,7 @@
                 <button id="btn-pause" onclick="togglePause()" class="hidden bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">PAUZĖ</button>
             </div>
 
-            <!-- Defender Shields -->
+            <!-- Gynėjų skydų sekcija -->
             <div id="view-shields" class="hidden w-full bg-gray-100 p-4 rounded-xl mb-4 text-center border-2 border-red-500">
                 <h3 class="font-bold text-red-600 mb-2">Gynėjų statusas</h3>
                 <div class="flex justify-center gap-2 text-3xl">
@@ -54,7 +53,7 @@
                 <p id="shield-text" class="text-sm mt-2 font-semibold">Puolėjai dar neužėmė 1 CP</p>
             </div>
 
-            <!-- Dynamic Status Area -->
+            <!-- Dinaminė turinio dalis -->
             <div class="flex-1 flex flex-col items-center justify-center text-center">
                 <h2 id="ui-status-title" class="text-2xl font-bold mb-4 uppercase text-gray-900">Keliaukite prie 1 CP</h2>
                 
@@ -64,25 +63,28 @@
                     <p id="ui-speed" class="text-gray-500">Laiko greitis: 1x</p>
                 </div>
 
-                <!-- Defender Radar Info -->
                 <p id="ui-defender-info" class="hidden text-xl text-red-600 font-bold mb-4"></p>
 
-                <!-- Attacker Buttons -->
+                <!-- Mygtukai puolėjams -->
                 <button id="btn-proceed" onclick="proceedNextState()" class="hidden w-full bg-blue-600 text-white py-4 rounded-xl text-lg font-bold mt-8">Pradėti užėmimą</button>
                 
+                <!-- Didelis mygtukas puolėjams -->
                 <div id="btn-accelerate" class="hidden w-full h-64 bg-gray-400 mt-auto rounded-xl flex items-center justify-center cursor-pointer touch-none select-none">
                     <span id="btn-accelerate-text" class="text-white text-3xl font-bold">PAGREITINTI</span>
                 </div>
+
+                <!-- Mygtukas Žaisti iš naujo (Pasirodys tik pabaigoje) -->
+                <button id="btn-restart" onclick="restartGame()" class="hidden w-full bg-gray-800 text-white py-4 rounded-xl text-lg font-bold mt-8">Žaisti iš naujo</button>
             </div>
             
         </div>
     </div>
 
-    <!-- Firebase Logic -->
+    <!-- Žaidimo Logika ir Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        // PAŠALINTA ANALYTICS, KAD NEBLOKUOTŲ TELEFONŲ NARŠYKLĖS
+        import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
@@ -91,12 +93,11 @@
             storageBucket: "cprush-2249a.firebasestorage.app",
             messagingSenderId: "40928992118",
             appId: "1:40928992118:web:86c09b9eab9d9539c67857",
-            measurementId: "G-7N5M3W4ZYB",
+            // Jūsų duomenų bazės nuoroda
             databaseURL: "https://cprush-2249a-default-rtdb.europe-west1.firebasedatabase.app"
         };
 
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const db = getDatabase(app);
         const gameRef = ref(db, 'gameState');
 
@@ -116,7 +117,6 @@
         let userRole = null;
         let gameLoop = null;
 
-        // Default initial state
         let state = {
             status: States.MAIN,
             mainTime: 105 * 60,
@@ -138,14 +138,32 @@
             screens.role.classList.add('hidden');
             
             if (role === 'main') {
-                screens.setup.classList.remove('hidden');
-                screens.setup.classList.add('flex');
+                // TIKRINAME AR ŽAIDIMAS JAU VYKSTA
+                get(gameRef).then((snapshot) => {
+                    const data = snapshot.val();
+                    // Jei duomenys egzistuoja ir žaidimas nėra pradinėje ar pabaigos būsenoje
+                    if (data && data.status !== States.MAIN && data.status !== States.VICTORY && data.status !== States.GAME_OVER) {
+                        state = data;
+                        screens.game.classList.remove('hidden');
+                        screens.game.classList.add('flex');
+                        document.getElementById('btn-pause').classList.remove('hidden');
+                        renderUI();
+                        startAttackerLoop();
+                    } else {
+                        // Jei nevyksta, rodome nustatymus
+                        screens.setup.classList.remove('hidden');
+                        screens.setup.classList.add('flex');
+                    }
+                }).catch((error) => {
+                    console.error("Klaida skaitant duomenis:", error);
+                    screens.setup.classList.remove('hidden');
+                    screens.setup.classList.add('flex');
+                });
             } else {
                 screens.game.classList.remove('hidden');
                 screens.game.classList.add('flex');
                 document.getElementById('view-shields').classList.remove('hidden');
                 
-                // Immediately render the default state (1:45:00) so it doesn't show 00:00:00
                 renderUI(); 
                 listenToFirebase(); 
             }
@@ -202,6 +220,23 @@
             renderUI();
         };
 
+        // Nauja funkcija: Žaisti iš naujo
+        window.restartGame = () => {
+            if (gameLoop) clearInterval(gameLoop);
+            state = {
+                status: States.MAIN,
+                mainTime: 105 * 60,
+                cpTime: 0,
+                isPaused: false,
+                isDemo: false,
+                teamColor: 'Red',
+                isPressed: false
+            };
+            set(gameRef, state).then(() => {
+                location.reload(); // Perkrauna puslapį ir leidžia pradėti nuo nulio
+            });
+        };
+
         const accBtn = document.getElementById('btn-accelerate');
         
         const pressStart = (e) => {
@@ -226,6 +261,7 @@
         window.addEventListener('touchend', pressEnd);
 
         function startAttackerLoop() {
+            if (gameLoop) clearInterval(gameLoop);
             let tick = 0;
             gameLoop = setInterval(() => {
                 if (state.status === States.VICTORY || state.status === States.GAME_OVER) return;
@@ -269,7 +305,6 @@
                 if (data) {
                     state = data;
                 }
-                // Call render even if data is null, to keep UI from breaking
                 renderUI();
             });
         }
@@ -291,11 +326,8 @@
 
         function renderUI() {
             const title = document.getElementById('ui-status-title');
-            
-            // Reset text color (in case game was restarted after a win/loss)
             title.className = "text-2xl font-bold mb-4 uppercase text-gray-900";
 
-            // Fallbacks to 0 if data is missing
             const currentMainTime = state.mainTime || 0;
             const currentCpTime = state.cpTime || 0;
 
@@ -307,11 +339,13 @@
             const proceedBtn = document.getElementById('btn-proceed');
             const accBtnUI = document.getElementById('btn-accelerate');
             const defenderInfo = document.getElementById('ui-defender-info');
+            const restartBtn = document.getElementById('btn-restart');
 
             cpContainer.classList.add('hidden');
             proceedBtn.classList.add('hidden');
             accBtnUI.classList.add('hidden');
             defenderInfo.classList.add('hidden');
+            restartBtn.classList.add('hidden');
 
             if (state.isPaused && userRole === 'main') {
                 document.getElementById('btn-accelerate-text').innerText = "PAUZĖ";
@@ -370,10 +404,12 @@
                 case States.VICTORY:
                     title.innerText = "SVEIKINAME!\nPuolėjai laimėjo!";
                     title.className = "text-3xl font-bold mb-4 text-green-600";
+                    if (userRole === 'main') restartBtn.classList.remove('hidden');
                     break;
                 case States.GAME_OVER:
                     title.innerText = "PRALAIMĖJOTE!\nLaikas baigėsi (Gynėjai laimėjo)";
                     title.className = "text-3xl font-bold mb-4 text-red-600";
+                    if (userRole === 'main') restartBtn.classList.remove('hidden');
                     break;
             }
 
