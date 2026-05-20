@@ -6,23 +6,26 @@
     <title>Lithilas CP RUSH</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Apsauga nuo netyčinio teksto žymėjimo */
         body { user-select: none; -webkit-user-select: none; }
         .hidden { display: none !important; }
+        /* Kritiškai svarbu telefonams: neleidžia slinkti ekrano ant mygtuko */
+        .no-touch-action { touch-action: none; }
     </style>
 </head>
 <body class="bg-gray-200 text-gray-900 font-sans h-screen flex justify-center items-center">
 
     <div id="app" class="bg-white w-full max-w-md h-full sm:h-[800px] sm:rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
         
-        <!-- ROLĖS PASIRINKIMAS -->
+        <!-- 1. EKRANAS: ROLĖS PASIRINKIMAS -->
         <div id="screen-role" class="flex flex-col items-center justify-center h-full p-6 text-center">
             <h1 class="text-3xl font-bold mb-8">LITHILAS: CP RUSH</h1>
-            <p class="mb-4 text-lg">Pasirinkite savo rolę:</p>
-            <button id="btn-main" onclick="selectRole('main')" class="w-full bg-blue-600 text-white py-4 rounded-xl text-xl font-bold mb-4 active:bg-blue-700 transition-colors">⚔️ PUOLĖJAS (Main)</button>
-            <button id="btn-view" onclick="selectRole('view')" class="w-full bg-red-600 text-white py-4 rounded-xl text-xl font-bold active:bg-red-700 transition-colors">🛡️ GYNĖJAS (View)</button>
+            <p id="role-subtitle" class="mb-4 text-lg">Pasirinkite savo rolę:</p>
+            <button id="btn-role-main" onclick="selectRole('main')" class="w-full bg-blue-600 text-white py-4 rounded-xl text-xl font-bold mb-4 active:bg-blue-700">⚔️ PUOLĖJAS (Main)</button>
+            <button id="btn-role-view" onclick="selectRole('view')" class="w-full bg-red-600 text-white py-4 rounded-xl text-xl font-bold active:bg-red-700">🛡️ GYNĖJAS (View)</button>
         </div>
 
-        <!-- PUOLĖJŲ NUSTATYMAI -->
+        <!-- 2. EKRANAS: NUSTATYMAI (TIK PUOLĖJUI) -->
         <div id="screen-setup" class="hidden flex-col items-center justify-center h-full p-6 text-center">
             <h2 class="text-2xl font-bold mb-8">Puolėjų nustatymai</h2>
             <p class="mb-2">Komandos spalva:</p>
@@ -34,15 +37,15 @@
             <button onclick="startGame(true)" class="w-full bg-purple-600 text-white py-4 rounded-xl text-lg font-bold active:bg-purple-700">Pradėti Demo (3-2-1 min)</button>
         </div>
 
-        <!-- AKTYVUS ŽAIDIMAS -->
+        <!-- 3. EKRANAS: ŽAIDIMAS -->
         <div id="screen-game" class="hidden flex-col h-full p-4 relative">
             
             <div class="flex justify-between items-center mb-6">
-                <div class="text-lg font-bold">Laikas: <span id="ui-main-timer" class="text-xl">00:00:00</span></div>
+                <div class="text-lg font-bold">Laikas: <span id="ui-main-timer" class="text-xl font-mono">00:00:00</span></div>
                 <button id="btn-pause" onclick="togglePause()" class="hidden bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">PAUZĖ</button>
             </div>
 
-            <!-- Gynėjų skydų sekcija -->
+            <!-- Gynėjų informacija (Skydai) -->
             <div id="view-shields" class="hidden w-full bg-gray-100 p-4 rounded-xl mb-4 text-center border-2 border-red-500">
                 <h3 class="font-bold text-red-600 mb-2">Gynėjų statusas</h3>
                 <div class="flex justify-center gap-2 text-3xl">
@@ -52,32 +55,31 @@
                 <p id="shield-text" class="text-sm mt-2 font-semibold">Puolėjai dar neužėmė 1 CP</p>
             </div>
 
-            <!-- Dinaminė turinio dalis -->
+            <!-- Žaidimo statuso informacija -->
             <div class="flex-1 flex flex-col items-center justify-center text-center">
-                <h2 id="ui-status-title" class="text-2xl font-bold mb-4 uppercase text-gray-900">Keliaukite prie 1 CP</h2>
+                <h2 id="ui-title" class="text-2xl font-bold mb-4 uppercase text-gray-900">Kraunama...</h2>
                 
-                <div id="ui-cp-timer-container" class="hidden flex-col items-center mb-8">
+                <div id="ui-cp-container" class="hidden flex-col items-center mb-8">
                     <p class="text-xl">Likęs laikas:</p>
                     <p id="ui-cp-timer" class="text-4xl font-bold font-mono my-2">00:00</p>
-                    <p id="ui-speed" class="text-gray-500">Laiko greitis: 1x</p>
+                    <p id="ui-speed" class="text-gray-500 font-bold">Laiko greitis: 1x</p>
                 </div>
 
                 <p id="ui-defender-info" class="hidden text-xl text-red-600 font-bold mb-4"></p>
 
-                <!-- Mygtukai puolėjams -->
-                <button id="btn-proceed" onclick="proceedNextState()" class="hidden w-full bg-blue-600 text-white py-4 rounded-xl text-lg font-bold mt-8">Pradėti užėmimą</button>
+                <!-- Mygtukai Puolėjams -->
+                <button id="btn-proceed" onclick="proceedToNext()" class="hidden w-full bg-blue-600 text-white py-4 rounded-xl text-lg font-bold mt-8">Pradėti užėmimą</button>
                 
-                <!-- Didelis mygtukas puolėjams -->
-                <div id="btn-accelerate" class="hidden w-full h-64 bg-gray-400 mt-auto rounded-xl flex items-center justify-center cursor-pointer touch-none select-none">
+                <div id="btn-accelerate" class="hidden w-full h-64 bg-gray-400 mt-auto rounded-xl flex items-center justify-center cursor-pointer no-touch-action">
                     <span id="btn-accelerate-text" class="text-white text-3xl font-bold pointer-events-none">PAGREITINTI</span>
                 </div>
 
-                <button id="btn-restart" onclick="restartGame()" class="hidden w-full bg-gray-800 text-white py-4 rounded-xl text-lg font-bold mt-8">Žaisti iš naujo</button>
+                <button id="btn-restart" onclick="resetGame()" class="hidden w-full bg-gray-800 text-white py-4 rounded-xl text-lg font-bold mt-8">Žaisti iš naujo</button>
             </div>
-            
         </div>
     </div>
 
+    <!-- FIREBASE LOGIKA -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -96,24 +98,25 @@
         const db = getDatabase(app);
         const gameRef = ref(db, 'gameState');
 
-        const States = {
-            MAIN: 'MAIN',
-            PRE_CP_1: 'PRE_CONTROL_POINT_1',
-            CP_1: 'CONTROL_POINT_1',
-            PRE_CP_2: 'PRE_CONTROL_POINT_2',
-            CP_2: 'CONTROL_POINT_2',
-            BASE_CAPTURED: 'BASE_CAPTURED',
-            PRE_CP_3: 'PRE_CONTROL_POINT_3',
-            CP_3: 'CONTROL_POINT_3',
-            VICTORY: 'VICTORY',
-            GAME_OVER: 'GAME_OVER'
-        };
+        // Būsenų konstantos
+        const S_MAIN = 'MAIN';
+        const S_PRE_CP1 = 'PRE_CP_1';
+        const S_CP1 = 'CP_1';
+        const S_PRE_CP2 = 'PRE_CP_2';
+        const S_CP2 = 'CP_2';
+        const S_BASE = 'BASE_CAPTURED';
+        const S_PRE_CP3 = 'PRE_CP_3';
+        const S_CP3 = 'CP_3';
+        const S_VICTORY = 'VICTORY';
+        const S_GAMEOVER = 'GAME_OVER';
 
-        let userRole = null;
+        // Globalūs kintamieji
+        let userRole = null; // 'main' arba 'view'
         let gameLoop = null;
 
+        // Pradinė žaidimo būsena
         let state = {
-            status: States.MAIN,
+            status: S_MAIN,
             mainTime: 105 * 60,
             cpTime: 0,
             isPaused: false,
@@ -122,54 +125,273 @@
             isPressed: false
         };
 
-        const screens = {
-            role: document.getElementById('screen-role'),
-            setup: document.getElementById('screen-setup'),
-            game: document.getElementById('screen-game')
-        };
+        // --- SISTEMINĖS FUNKCIJOS ---
+
+        function formatTime(sec) {
+            if (sec < 0) sec = 0;
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        
+        function formatCPTime(sec) {
+            if (sec < 0) sec = 0;
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function switchScreen(screenId) {
+            document.getElementById('screen-role').classList.add('hidden');
+            document.getElementById('screen-setup').classList.add('hidden');
+            document.getElementById('screen-game').classList.add('hidden');
+            
+            document.getElementById('screen-setup').classList.remove('flex');
+            document.getElementById('screen-game').classList.remove('flex');
+
+            const target = document.getElementById(screenId);
+            target.classList.remove('hidden');
+            if (screenId !== 'screen-role') {
+                target.classList.add('flex');
+            }
+        }
+
+        // --- FIREBASE SINCHRONIZACIJA ---
+
+        function syncToFirebase() {
+            if (userRole === 'main') {
+                set(gameRef, state).catch(e => console.error("Firebase klaida:", e));
+            }
+        }
+
+        function startListening() {
+            onValue(gameRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) state = data;
+                renderUI();
+            });
+        }
+
+        // --- ŽAIDIMO LOGIKA (TIK PUOLĖJUI) ---
+
+        function startGameLoop() {
+            if (gameLoop) clearInterval(gameLoop);
+            
+            let tick = 0;
+            // Ciklas veikia kas 500ms
+            gameLoop = setInterval(() => {
+                if (state.status === S_VICTORY || state.status === S_GAMEOVER) return;
+
+                if (!state.isPaused) {
+                    tick++;
+                    let stateChanged = false;
+
+                    // Pagrindinis laikas mažėja kas sekundę (kas 2 ciklą)
+                    if (tick % 2 === 0 && state.mainTime > 0) {
+                        state.mainTime--;
+                        stateChanged = true;
+                    }
+
+                    // Pralaimėjimo sąlyga
+                    if (state.mainTime <= 0 && state.status !== S_VICTORY) {
+                        state.status = S_GAMEOVER;
+                        stateChanged = true;
+                    }
+
+                    // CP laiko mažinimas
+                    if (state.status === S_CP1 || state.status === S_CP2 || state.status === S_CP3) {
+                        // Jei paspausta - mažiname kas 500ms, jei ne - kas 1s
+                        if (state.isPressed || tick % 2 === 0) {
+                            state.cpTime--;
+                            stateChanged = true;
+                        }
+
+                        // Užėmimo sąlygos
+                        if (state.cpTime <= 0) {
+                            if (state.status === S_CP1) state.status = S_PRE_CP2;
+                            else if (state.status === S_CP2) state.status = S_BASE;
+                            else if (state.status === S_CP3) state.status = S_VICTORY;
+                            stateChanged = true;
+                        }
+                    }
+
+                    // Išsiunčiame pakeitimus tik jei kažkas pasikeitė, kad neapkrautume serverio
+                    if (stateChanged) {
+                        syncToFirebase();
+                        renderUI();
+                    }
+                }
+            }, 500);
+        }
+
+        // --- NAUDOTOJO SĄSAJOS ATNAUJINIMAS ---
+
+        function renderUI() {
+            // Laikrodžiai
+            document.getElementById('ui-main-timer').innerText = formatTime(state.mainTime);
+            document.getElementById('ui-cp-timer').innerText = formatCPTime(state.cpTime);
+            
+            // UI Elementų nuorodos
+            const title = document.getElementById('ui-title');
+            const cpContainer = document.getElementById('ui-cp-container');
+            const btnProceed = document.getElementById('btn-proceed');
+            const btnAccelerate = document.getElementById('btn-accelerate');
+            const btnRestart = document.getElementById('btn-restart');
+            const defInfo = document.getElementById('ui-defender-info');
+            const speedText = document.getElementById('ui-speed');
+            const btnPause = document.getElementById('btn-pause');
+
+            // Reset UI
+            title.className = "text-2xl font-bold mb-4 uppercase text-gray-900";
+            cpContainer.classList.add('hidden');
+            btnProceed.classList.add('hidden');
+            btnAccelerate.classList.add('hidden');
+            btnRestart.classList.add('hidden');
+            defInfo.classList.add('hidden');
+
+            // Pauzės mygtuko logika
+            if (userRole === 'main') {
+                btnPause.classList.remove('hidden');
+                btnPause.innerText = state.isPaused ? "TĘSTI" : "PAUZĖ";
+                btnPause.className = state.isPaused ? "bg-red-600 text-white px-4 py-2 rounded-lg font-bold" : "bg-blue-600 text-white px-4 py-2 rounded-lg font-bold";
+            }
+
+            // Pagreičio mygtuko būsena (vizualiai)
+            if (userRole === 'main') {
+                if (state.isPaused) {
+                    btnAccelerate.style.backgroundColor = '#9ca3af';
+                    document.getElementById('btn-accelerate-text').innerText = "PAUZĖ";
+                } else if (state.isPressed) {
+                    btnAccelerate.style.backgroundColor = state.teamColor === 'Red' ? '#ef4444' : '#3b82f6';
+                    document.getElementById('btn-accelerate-text').innerText = "GREIČIAU!";
+                } else {
+                    btnAccelerate.style.backgroundColor = '#9ca3af'; // Pilka
+                    document.getElementById('btn-accelerate-text').innerText = "PAGREITINTI";
+                }
+            }
+
+            speedText.innerText = `Laiko greitis: ${state.isPressed && !state.isPaused ? '2x' : '1x'}`;
+
+            // Būsenų atvaizdavimas
+            switch (state.status) {
+                case S_MAIN:
+                    title.innerText = "Laukiama žaidimo starto...";
+                    if (userRole === 'view') { defInfo.innerText = "Puolėjai dar nepradėjo žaidimo."; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_PRE_CP1:
+                    title.innerText = "Keliaukite prie 1 KONTROLINIO TAŠKO";
+                    if (userRole === 'main') { btnProceed.innerText = "Pradėti 1 taško užėmimą"; btnProceed.classList.remove('hidden'); }
+                    else { defInfo.innerText = "Puolėjai keliauja prie 1 CP"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_CP1:
+                    title.innerText = "1 KONTROLINIS TAŠKAS";
+                    cpContainer.classList.remove('hidden'); cpContainer.classList.add('flex');
+                    if (userRole === 'main') btnAccelerate.classList.remove('hidden');
+                    else { defInfo.innerText = "⚠️ PUOLĖJAI UŽIMINĖJA 1 CP!"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_PRE_CP2:
+                    title.innerText = "Keliaukite prie 2 KONTROLINIO TAŠKO";
+                    if (userRole === 'main') { btnProceed.innerText = "Pradėti 2 taško užėmimą"; btnProceed.classList.remove('hidden'); }
+                    else { defInfo.innerText = "Puolėjai keliauja prie 2 CP"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_CP2:
+                    title.innerText = "2 KONTROLINIS TAŠKAS";
+                    cpContainer.classList.remove('hidden'); cpContainer.classList.add('flex');
+                    if (userRole === 'main') btnAccelerate.classList.remove('hidden');
+                    else { defInfo.innerText = "⚠️ PUOLĖJAI UŽIMINĖJA 2 CP!"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_BASE:
+                    title.innerText = "JŪSŲ BAZĖ DABAR YRA 1 CP";
+                    if (userRole === 'main') { btnProceed.innerText = "Tęsti į 3 CP"; btnProceed.classList.remove('hidden'); }
+                    else { defInfo.innerText = "Puolėjai užėmė 2 CP!"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_PRE_CP3:
+                    title.innerText = "Keliaukite prie 3 KONTROLINIO TAŠKO";
+                    if (userRole === 'main') { btnProceed.innerText = "Pradėti 3 taško užėmimą"; btnProceed.classList.remove('hidden'); }
+                    else { defInfo.innerText = "Puolėjai keliauja prie 3 CP (Finalas)"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_CP3:
+                    title.innerText = "3 KONTROLINIS TAŠKAS";
+                    cpContainer.classList.remove('hidden'); cpContainer.classList.add('flex');
+                    if (userRole === 'main') btnAccelerate.classList.remove('hidden');
+                    else { defInfo.innerText = "🚨 PUOLĖJAI UŽIMINĖJA FINALINĮ TAŠKĄ!"; defInfo.classList.remove('hidden'); }
+                    break;
+                case S_VICTORY:
+                    title.innerText = "SVEIKINAME!\nPuolėjai laimėjo!";
+                    title.className = "text-3xl font-bold mb-4 text-green-600";
+                    if (userRole === 'main') btnRestart.classList.remove('hidden');
+                    break;
+                case S_GAMEOVER:
+                    title.innerText = "PRALAIMĖJOTE!\nLaikas baigėsi (Gynėjai laimėjo)";
+                    title.className = "text-3xl font-bold mb-4 text-red-600";
+                    if (userRole === 'main') btnRestart.classList.remove('hidden');
+                    break;
+            }
+
+            // Gynėjų skydų valdymas
+            if (userRole === 'view') {
+                const s1 = document.getElementById('shield-1');
+                const s2 = document.getElementById('shield-2');
+                const sText = document.getElementById('shield-text');
+                
+                s1.classList.add('opacity-30', 'grayscale');
+                s2.classList.add('opacity-30', 'grayscale');
+
+                if (state.status === S_PRE_CP2 || state.status === S_CP2) {
+                    s1.classList.remove('opacity-30', 'grayscale');
+                    sText.innerText = "Aktyvus 1 skydas (Prarastas 1 CP)";
+                } else if ([S_BASE, S_PRE_CP3, S_CP3, S_VICTORY].includes(state.status)) {
+                    s1.classList.remove('opacity-30', 'grayscale');
+                    s2.classList.remove('opacity-30', 'grayscale');
+                    sText.innerText = "Aktyvūs 2 skydai! (Prarasti 2 CP)";
+                } else if (state.status === S_GAMEOVER) {
+                    sText.innerText = "ŽAIDIMAS BAIGTAS";
+                } else if (state.status === S_MAIN) {
+                    sText.innerText = "Laukiama žaidėjų";
+                } else {
+                    sText.innerText = "Puolėjai dar neužėmė 1 CP";
+                }
+            }
+        }
+
+        // --- GLOBALŪS MYGTUKŲ IVYKIAI KVIEČIAMI IŠ HTML ---
 
         window.selectRole = (role) => {
             userRole = role;
+            const roleBtn = document.getElementById('btn-role-main');
+            const origText = roleBtn.innerText;
             
             if (role === 'main') {
-                const btn = document.getElementById('btn-main');
-                const originalText = btn.innerText;
-                btn.innerText = "⏳ Jungiamasi...";
-                btn.disabled = true;
+                roleBtn.innerText = "⏳ Jungiamasi...";
+                roleBtn.disabled = true;
 
+                // Patikriname Firebase ar nėra aktyvaus žaidimo
                 get(gameRef).then((snapshot) => {
-                    screens.role.classList.add('hidden');
                     const data = snapshot.val();
-                    
-                    if (data && data.status !== States.MAIN && data.status !== States.VICTORY && data.status !== States.GAME_OVER) {
+                    if (data && data.status !== S_MAIN && data.status !== S_VICTORY && data.status !== S_GAMEOVER) {
+                        // Žaidimas jau vyksta - grąžiname į ekraną
                         state = data;
-                        screens.game.classList.remove('hidden');
-                        screens.game.classList.add('flex');
-                        document.getElementById('btn-pause').classList.remove('hidden');
+                        switchScreen('screen-game');
                         renderUI();
-                        startAttackerLoop();
+                        startListening();
+                        startGameLoop();
                     } else {
-                        screens.setup.classList.remove('hidden');
-                        screens.setup.classList.add('flex');
+                        // Naujas žaidimas
+                        switchScreen('screen-setup');
                     }
-                    btn.innerText = originalText;
-                    btn.disabled = false;
-                }).catch((error) => {
-                    console.error("Firebase klaida:", error);
-                    screens.role.classList.add('hidden');
-                    screens.setup.classList.remove('hidden');
-                    screens.setup.classList.add('flex');
-                    btn.innerText = originalText;
-                    btn.disabled = false;
+                    roleBtn.innerText = origText;
+                    roleBtn.disabled = false;
+                }).catch((e) => {
+                    console.error(e);
+                    switchScreen('screen-setup'); // Leidžiame tęsti nepaisant klaidos
                 });
             } else {
-                screens.role.classList.add('hidden');
-                screens.game.classList.remove('hidden');
-                screens.game.classList.add('flex');
+                // View rolė
+                switchScreen('screen-game');
                 document.getElementById('view-shields').classList.remove('hidden');
-                
-                renderUI(); 
-                listenToFirebase(); 
+                renderUI();
+                startListening();
             }
         };
 
@@ -185,264 +407,77 @@
         window.startGame = (isDemo) => {
             state.isDemo = isDemo;
             state.mainTime = 105 * 60;
-            state.status = States.PRE_CP_1;
+            state.status = S_PRE_CP1;
             state.isPaused = false;
             
-            screens.setup.classList.add('hidden');
-            screens.setup.classList.remove('flex');
-            screens.game.classList.remove('hidden');
-            screens.game.classList.add('flex');
-            
-            document.getElementById('btn-pause').classList.remove('hidden');
-            
-            startAttackerLoop();
+            switchScreen('screen-game');
+            syncToFirebase();
+            renderUI();
+            startListening(); // Leidžia matyti pokyčius, jei atsijungtų/prisijungtų
+            startGameLoop();
         };
 
         window.togglePause = () => {
             state.isPaused = !state.isPaused;
-            const btn = document.getElementById('btn-pause');
-            btn.innerText = state.isPaused ? "TĘSTI" : "PAUZĖ";
-            btn.className = state.isPaused ? "bg-red-600 text-white px-4 py-2 rounded-lg font-bold" : "bg-blue-600 text-white px-4 py-2 rounded-lg font-bold";
-            updateFirebase();
+            syncToFirebase();
             renderUI();
         };
 
-        window.proceedNextState = () => {
-            if (state.status === States.PRE_CP_1) {
-                state.status = States.CP_1;
+        window.proceedToNext = () => {
+            if (state.status === S_PRE_CP1) {
+                state.status = S_CP1;
                 state.cpTime = (state.isDemo ? 3 : 30) * 60;
-            } else if (state.status === States.PRE_CP_2) {
-                state.status = States.CP_2;
+            } else if (state.status === S_PRE_CP2) {
+                state.status = S_CP2;
                 state.cpTime = (state.isDemo ? 2 : 20) * 60;
-            } else if (state.status === States.BASE_CAPTURED) {
-                state.status = States.PRE_CP_3;
-            } else if (state.status === States.PRE_CP_3) {
-                state.status = States.CP_3;
+            } else if (state.status === S_BASE) {
+                state.status = S_PRE_CP3;
+            } else if (state.status === S_PRE_CP3) {
+                state.status = S_CP3;
                 state.cpTime = (state.isDemo ? 1 : 10) * 60;
             }
-            updateFirebase();
+            syncToFirebase();
             renderUI();
         };
 
-        window.restartGame = () => {
+        window.resetGame = () => {
             if (gameLoop) clearInterval(gameLoop);
-            state = {
-                status: States.MAIN,
-                mainTime: 105 * 60,
-                cpTime: 0,
-                isPaused: false,
-                isDemo: false,
-                teamColor: 'Red',
-                isPressed: false
-            };
-            set(gameRef, state).then(() => {
-                location.reload(); 
-            });
-        };
-
-        const accBtn = document.getElementById('btn-accelerate');
-        
-        // Saugūs liečiamųjų ekranų įvykiai (be e.preventDefault())
-        const pressStart = () => {
-            if(state.isPaused) return;
-            state.isPressed = true;
-            accBtn.style.backgroundColor = state.teamColor === 'Red' ? '#ef4444' : '#3b82f6';
-            document.getElementById('btn-accelerate-text').innerText = "GREIČIAU!";
-            updateFirebase();
-        };
-        const pressEnd = () => {
+            state.status = S_MAIN;
+            state.mainTime = 105 * 60;
+            state.cpTime = 0;
+            state.isPaused = false;
             state.isPressed = false;
-            accBtn.style.backgroundColor = '#9ca3af'; 
-            document.getElementById('btn-accelerate-text').innerText = state.isPaused ? "PAUZĖ" : "PAGREITINTI";
-            updateFirebase();
+            
+            syncToFirebase();
+            location.reload(); // Perkrauna puslapį
         };
 
-        // Pelių paspaudimai kompiuteriui
-        accBtn.addEventListener('mousedown', pressStart);
-        window.addEventListener('mouseup', pressEnd);
-        
-        // Touch įvykiai telefonams
-        accBtn.addEventListener('touchstart', pressStart);
-        window.addEventListener('touchend', pressEnd);
-        window.addEventListener('touchcancel', pressEnd);
+        // --- SAUGŪS POINTER ĮVYKIAI (2x Greičiui) ---
+        // Naudojami "pointer" įvykiai, kurie veikia vienodai stabiliai tiek pelėms, tiek telefonams.
+        const accBtn = document.getElementById('btn-accelerate');
 
-        function startAttackerLoop() {
-            if (gameLoop) clearInterval(gameLoop);
-            let tick = 0;
-            gameLoop = setInterval(() => {
-                if (state.status === States.VICTORY || state.status === States.GAME_OVER) return;
+        const pointerDownHandler = (e) => {
+            if (state.isPaused || userRole !== 'main') return;
+            state.isPressed = true;
+            syncToFirebase();
+            renderUI();
+        };
 
-                if (!state.isPaused) {
-                    tick++;
-                    if (tick % 2 === 0 && state.mainTime > 0) {
-                        state.mainTime--;
-                    }
+        const pointerUpHandler = (e) => {
+            if (userRole !== 'main') return;
+            state.isPressed = false;
+            syncToFirebase();
+            renderUI();
+        };
 
-                    if (state.mainTime <= 0 && state.status !== States.VICTORY) {
-                        state.status = States.GAME_OVER;
-                    }
+        accBtn.addEventListener('pointerdown', pointerDownHandler);
+        // pointerup užsifiksuoja atleidus paspaudimą
+        accBtn.addEventListener('pointerup', pointerUpHandler);
+        // pointercancel padeda apsaugoti nuo naršyklės avarijų (jei ekranas išsijungia ir pan.)
+        accBtn.addEventListener('pointercancel', pointerUpHandler);
+        // pointerout užsifiksuoja jei pirštas/pelė nuslysta nuo mygtuko
+        accBtn.addEventListener('pointerout', pointerUpHandler);
 
-                    if (state.status.startsWith('CONTROL_POINT') && state.cpTime > 0) {
-                        if (state.isPressed || tick % 2 === 0) {
-                            state.cpTime--;
-                        }
-
-                        if (state.cpTime <= 0) {
-                            if (state.status === States.CP_1) state.status = States.PRE_CP_2;
-                            else if (state.status === States.CP_2) state.status = States.BASE_CAPTURED;
-                            else if (state.status === States.CP_3) state.status = States.VICTORY;
-                        }
-                    }
-                }
-                updateFirebase();
-                renderUI();
-            }, 500); 
-        }
-
-        function updateFirebase() {
-            if (userRole === 'main') {
-                set(gameRef, state).catch(error => console.error(error));
-            }
-        }
-
-        function listenToFirebase() {
-            onValue(gameRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    state = data;
-                }
-                renderUI();
-            });
-        }
-
-        function formatTime(totalSeconds) {
-            if (isNaN(totalSeconds) || totalSeconds < 0) return "00:00:00";
-            const h = Math.floor(totalSeconds / 3600);
-            const m = Math.floor((totalSeconds % 3600) / 60);
-            const s = totalSeconds % 60;
-            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-        
-        function formatCPTime(totalSeconds) {
-            if (isNaN(totalSeconds) || totalSeconds < 0) return "00:00";
-            const m = Math.floor(totalSeconds / 60);
-            const s = totalSeconds % 60;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        }
-
-        function renderUI() {
-            const title = document.getElementById('ui-status-title');
-            title.className = "text-2xl font-bold mb-4 uppercase text-gray-900";
-
-            const currentMainTime = state.mainTime || 0;
-            const currentCpTime = state.cpTime || 0;
-
-            document.getElementById('ui-main-timer').innerText = formatTime(currentMainTime);
-            document.getElementById('ui-cp-timer').innerText = formatCPTime(currentCpTime);
-            document.getElementById('ui-speed').innerText = `Laiko greitis: ${state.isPressed && !state.isPaused ? '2x' : '1x'}`;
-
-            const cpContainer = document.getElementById('ui-cp-timer-container');
-            const proceedBtn = document.getElementById('btn-proceed');
-            const accBtnUI = document.getElementById('btn-accelerate');
-            const defenderInfo = document.getElementById('ui-defender-info');
-            const restartBtn = document.getElementById('btn-restart');
-
-            cpContainer.classList.add('hidden');
-            proceedBtn.classList.add('hidden');
-            accBtnUI.classList.add('hidden');
-            defenderInfo.classList.add('hidden');
-            restartBtn.classList.add('hidden');
-
-            if (state.isPaused && userRole === 'main') {
-                document.getElementById('btn-accelerate-text').innerText = "PAUZĖ";
-                accBtnUI.style.backgroundColor = '#9ca3af';
-            }
-
-            switch (state.status) {
-                case States.MAIN:
-                    title.innerText = "LAUKIAMAS STARTAS...";
-                    if (userRole === 'view') { 
-                        defenderInfo.innerText = "Puolėjai dar nepradėjo žaidimo."; 
-                        defenderInfo.classList.remove('hidden'); 
-                    }
-                    break;
-                case States.PRE_CP_1:
-                    title.innerText = "Keliaukite prie 1 KONTROLINIO TAŠKO";
-                    if (userRole === 'main') { proceedBtn.innerText = "Pradėti 1 taško užėmimą"; proceedBtn.classList.remove('hidden'); }
-                    else { defenderInfo.innerText = "Puolėjai keliauja prie 1 CP"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.CP_1:
-                    title.innerText = "1 KONTROLINIS TAŠKAS";
-                    cpContainer.classList.remove('hidden');
-                    cpContainer.classList.add('flex');
-                    if (userRole === 'main') accBtnUI.classList.remove('hidden');
-                    else { defenderInfo.innerText = "⚠️ PUOLĖJAI UŽIMINĖJA 1 CP!"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.PRE_CP_2:
-                    title.innerText = "Keliaukite prie 2 KONTROLINIO TAŠKO";
-                    if (userRole === 'main') { proceedBtn.innerText = "Pradėti 2 taško užėmimą"; proceedBtn.classList.remove('hidden'); }
-                    else { defenderInfo.innerText = "Puolėjai keliauja prie 2 CP"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.CP_2:
-                    title.innerText = "2 KONTROLINIS TAŠKAS";
-                    cpContainer.classList.remove('hidden');
-                    cpContainer.classList.add('flex');
-                    if (userRole === 'main') accBtnUI.classList.remove('hidden');
-                    else { defenderInfo.innerText = "⚠️ PUOLĖJAI UŽIMINĖJA 2 CP!"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.BASE_CAPTURED:
-                    title.innerText = "JŪSŲ BAZĖ DABAR YRA 1 CP";
-                    if (userRole === 'main') { proceedBtn.innerText = "Tęsti į 3 CP"; proceedBtn.classList.remove('hidden'); }
-                    else { defenderInfo.innerText = "Puolėjai užėmė 2 CP!"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.PRE_CP_3:
-                    title.innerText = "Keliaukite prie 3 KONTROLINIO TAŠKO";
-                    if (userRole === 'main') { proceedBtn.innerText = "Pradėti 3 taško užėmimą"; proceedBtn.classList.remove('hidden'); }
-                    else { defenderInfo.innerText = "Puolėjai keliauja prie 3 CP (Finalas)"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.CP_3:
-                    title.innerText = "3 KONTROLINIS TAŠKAS";
-                    cpContainer.classList.remove('hidden');
-                    cpContainer.classList.add('flex');
-                    if (userRole === 'main') accBtnUI.classList.remove('hidden');
-                    else { defenderInfo.innerText = "🚨 PUOLĖJAI UŽIMINĖJA FINALINĮ TAŠKĄ!"; defenderInfo.classList.remove('hidden'); }
-                    break;
-                case States.VICTORY:
-                    title.innerText = "SVEIKINAME!\nPuolėjai laimėjo!";
-                    title.className = "text-3xl font-bold mb-4 text-green-600";
-                    if (userRole === 'main') restartBtn.classList.remove('hidden');
-                    break;
-                case States.GAME_OVER:
-                    title.innerText = "PRALAIMĖJOTE!\nLaikas baigėsi (Gynėjai laimėjo)";
-                    title.className = "text-3xl font-bold mb-4 text-red-600";
-                    if (userRole === 'main') restartBtn.classList.remove('hidden');
-                    break;
-            }
-
-            if (userRole === 'view') {
-                const s1 = document.getElementById('shield-1');
-                const s2 = document.getElementById('shield-2');
-                const text = document.getElementById('shield-text');
-                
-                s1.classList.add('opacity-30', 'grayscale');
-                s2.classList.add('opacity-30', 'grayscale');
-
-                if ([States.PRE_CP_2, States.CP_2].includes(state.status)) {
-                    s1.classList.remove('opacity-30', 'grayscale');
-                    text.innerText = "Aktyvus 1 skydas (Prarastas 1 CP)";
-                } else if ([States.BASE_CAPTURED, States.PRE_CP_3, States.CP_3, States.VICTORY].includes(state.status)) {
-                    s1.classList.remove('opacity-30', 'grayscale');
-                    s2.classList.remove('opacity-30', 'grayscale');
-                    text.innerText = "Aktyvūs 2 skydai! (Prarasti 2 CP)";
-                } else if (state.status === States.GAME_OVER) {
-                    text.innerText = "ŽAIDIMAS BAIGTAS";
-                } else if (state.status === States.MAIN) {
-                    text.innerText = "Laukiama žaidėjų";
-                } else {
-                    text.innerText = "Puolėjai dar neužėmė 1 CP";
-                }
-            }
-        }
     </script>
 </body>
 </html>
