@@ -8,7 +8,7 @@
         :root {
             --red-team: #e74c3c;
             --blue-team: #3498db;
-            --bg-dark: #2c3e50;
+            --bg-dark: #000000; /* CHANGED TO BLACK */
             --text-light: #ecf0f1;
             --btn-bg: #34495e;
             --accent: #f1c40f;
@@ -28,40 +28,16 @@
         .btn-blue { background-color: var(--blue-team); }
         .btn-pause { background-color: #e67e22; position: fixed; top: 10px; right: 10px; width: auto; padding: 10px 20px; z-index: 100; display: none; }
 
-        .timers { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; width: 100%; max-width: 400px; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; }
+        .timers { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; width: 100%; max-width: 400px; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; }
         .timer-box { font-size: 2rem; font-weight: bold; }
         .timer-label { font-size: 1rem; color: #bdc3c7; text-transform: uppercase; letter-spacing: 1px; }
         .global-timer { color: var(--accent); }
 
-        /* The Hold Square */
-        .capture-square {
-            width: 250px;
-            height: 250px;
-            background-color: #7f8c8d;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: white;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            touch-action: none; /* Prevent scrolling while holding */
-            transition: background-color 0.2s, transform 0.1s;
-        }
-        .capture-square.holding {
-            background-color: #2ecc71;
-            transform: scale(0.95);
-        }
-        .speed-indicator { margin-top: 15px; font-size: 1.2rem; font-weight: bold; color: #2ecc71; opacity: 0; transition: opacity 0.2s; }
-        .holding + .speed-indicator { opacity: 1; }
-
         /* Defender View Specific */
         .status-indicator { font-size: 1.5rem; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; width: 100%; max-width: 400px; }
-        .pulsing { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        #paused-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* Pause Overlay */
+        #paused-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #paused-overlay h1 { color: #e67e22; }
     </style>
 </head>
@@ -70,8 +46,10 @@
     <!-- Global Pause Overlay -->
     <div id="paused-overlay">
         <h1>GAME PAUSED</h1>
-        <p>Global and Capture timers are frozen.</p>
-        <button class="btn btn-pause-toggle" style="display:none;" id="resume-btn">Resume Game</button>
+        <p style="font-size: 1.2rem;">Capture timer is frozen.</p>
+        <p style="color: var(--accent); font-weight: bold; margin-top: 20px;">GLOBAL TIME IS STILL RUNNING:</p>
+        <div class="timer-box global-timer" id="pause-global-time" style="margin-bottom: 30px; font-size: 3rem;">105:00</div>
+        <button class="btn btn-pause-toggle" style="background-color: #27ae60; display:none;" id="resume-btn">Resume Game</button>
     </div>
 
     <!-- Attacker Pause Button -->
@@ -128,14 +106,11 @@
             </div>
             <div>
                 <div class="timer-label">Capture Progress</div>
-                <div class="timer-box" id="capture-local-time">30:00</div>
+                <div class="timer-box" id="capture-local-time">25:00</div>
             </div>
         </div>
         
-        <div class="capture-square" id="hold-square">
-            HOLD TO HACK
-        </div>
-        <div class="speed-indicator">2x SPEED ACTIVE</div>
+        <p style="color: #bdc3c7; margin-top: 10px;">Defend this point until the capture timer hits zero.</p>
     </div>
 
     <!-- 5. BASE CAPTURED INTERMISSION -->
@@ -145,7 +120,8 @@
             <div class="timer-label">Global Time Remaining</div>
             <div class="timer-box global-timer" id="base-global-time">105:00</div>
         </div>
-        <p>You have secured the base. Prepare for the final control point.</p>
+        <h2 style="color: #2ecc71; margin-top: 10px;">Your new base is Point 1.</h2>
+        <p style="margin-bottom: 20px;">Prepare to travel to the final control point.</p>
         <button class="btn" style="background-color: #2980b9;" onclick="continueToBaseTravel()">CONTINUE</button>
     </div>
 
@@ -169,7 +145,6 @@
             <div id="def-local-container" style="display: none;">
                 <div class="timer-label" id="def-local-label">Current Capture Timer</div>
                 <div class="timer-box" id="def-local-time">--:--</div>
-                <div id="def-speed-warning" style="color: #e74c3c; font-weight: bold; margin-top: 5px; display: none;" class="pulsing">ATTACKERS ARE HACKING (2x SPEED)</div>
             </div>
         </div>
 
@@ -184,7 +159,7 @@
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase configuration (UPDATED TO EUROPEAN REGION URL)
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
             authDomain: "cprush-2249a.firebaseapp.com",
@@ -202,10 +177,10 @@
         const db = getDatabase(app);
         const gameRef = ref(db, 'game');
 
-        // Game Configuration
+        // Game Configuration (UPDATED CAPTURE TIMES)
         const TIMERS = {
             global: 105 * 60,
-            normal: { cp1: 30 * 60, cp2: 20 * 60, cp3: 10 * 60 },
+            normal: { cp1: 25 * 60, cp2: 20 * 60, cp3: 15 * 60 },
             demo: { cp1: 3 * 60, cp2: 2 * 60, cp3: 1 * 60 }
         };
 
@@ -222,7 +197,6 @@
             globalTime: TIMERS.global,
             cpTime: 0,
             paused: false,
-            accelerated: false,
             mode: 'normal',
             team: 'red'
         };
@@ -234,11 +208,9 @@
             if (data) {
                 state = data;
             } else {
-                // If database is completely empty, seed it with the default state
                 set(gameRef, state).catch(err => console.error("Write error:", err));
             }
 
-            // Hide loading screen on first successful fetch
             if (!isInitialized) {
                 isInitialized = true;
                 document.getElementById('screen-loading').classList.remove('active');
@@ -247,7 +219,6 @@
                 }
             }
 
-            // If user has already selected a role, update the UI dynamically
             if (role) {
                 if (role === 'attacker' && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
                     startMasterTick();
@@ -255,22 +226,13 @@
                 updateUI();
             }
         }, (error) => {
-            // THIS WILL SHOW THE EXACT ERROR ON SCREEN IF IT FAILS
             document.getElementById('loading-header').innerText = "Firebase Error!";
             document.getElementById('loading-header').style.color = "#e74c3c";
             
             if (error.message.includes("Permission denied")) {
                 document.getElementById('loading-sub').innerHTML = `
                     <b>Permission Denied!</b><br><br>
-                    You need to change your Firebase Rules to:<br>
-                    <pre style="background:#111; padding:10px; margin-top:10px; text-align:left;">
-{
-  "rules": {
-    ".read": true,
-    ".write": true
-  }
-}
-                    </pre>
+                    You need to change your Firebase Rules.
                 `;
             } else {
                 document.getElementById('loading-sub').innerText = error.message;
@@ -280,12 +242,9 @@
         // --- UI Flow & Roles ---
         window.setRole = (selectedRole) => {
             role = selectedRole;
-            
             if (role === 'attacker') {
                 document.querySelectorAll('.btn-pause-toggle').forEach(el => el.style.display = 'block');
             }
-            
-            // Force an immediate UI update based on the currently synced state
             updateUI();
         };
 
@@ -304,7 +263,6 @@
                 globalTime: TIMERS.global,
                 cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1,
                 paused: false,
-                accelerated: false,
                 mode: setupMode,
                 team: setupTeam
             };
@@ -332,7 +290,6 @@
                     globalTime: TIMERS.global,
                     cpTime: 0,
                     paused: false,
-                    accelerated: false,
                     mode: 'normal',
                     team: 'red'
                 };
@@ -355,9 +312,10 @@
             if (masterTickInterval) clearInterval(masterTickInterval);
             
             masterTickInterval = setInterval(() => {
-                if (state.paused || state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return;
+                // Do not tick anything if game is completely over or hasn't started
+                if (state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return;
 
-                // Tick Global Time
+                // GLOBAL TIMER ALWAYS TICKS DOWN, EVEN IF PAUSED
                 state.globalTime--;
                 
                 if (state.globalTime <= 0) {
@@ -368,16 +326,16 @@
                     return;
                 }
 
-                // Tick Capture Time if in CP phase
-                if (state.phase.startsWith('cp')) {
-                    let deduction = state.accelerated ? 2 : 1;
-                    state.cpTime -= deduction;
+                // LOCAL CAPTURE TIMER ONLY TICKS IF NOT PAUSED AND IN A CP PHASE
+                if (!state.paused && state.phase.startsWith('cp')) {
+                    state.cpTime -= 1;
 
                     if (state.cpTime <= 0) {
                         state.cpTime = 0;
                         handleCaptureComplete();
                     }
                 }
+                
                 pushState();
             }, 1000);
         }
@@ -392,30 +350,6 @@
                 state.phase = 'victory';
             }
         }
-
-        // --- Hold Mechanic (Attackers) ---
-        const square = document.getElementById('hold-square');
-        
-        const startHold = (e) => {
-            e.preventDefault();
-            if (state.paused || !state.phase.startsWith('cp')) return;
-            square.classList.add('holding');
-            state.accelerated = true;
-            pushState();
-        };
-
-        const stopHold = (e) => {
-            e.preventDefault();
-            square.classList.remove('holding');
-            state.accelerated = false;
-            pushState();
-        };
-
-        square.addEventListener('mousedown', startHold);
-        square.addEventListener('touchstart', startHold);
-        square.addEventListener('mouseup', stopHold);
-        square.addEventListener('mouseleave', stopHold);
-        square.addEventListener('touchend', stopHold);
 
         // --- Firebase Push ---
         function pushState() {
@@ -432,6 +366,9 @@
 
             const formattedGlobal = formatTime(state.globalTime);
             const formattedLocal = formatTime(state.cpTime);
+            
+            // Update the global timer on the pause overlay actively
+            document.getElementById('pause-global-time').innerText = formattedGlobal;
 
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
 
@@ -448,9 +385,6 @@
                     document.getElementById('capture-title').innerText = `Capturing CP${state.phase.replace('cp', '')}`;
                     document.getElementById('capture-global-time').innerText = formattedGlobal;
                     document.getElementById('capture-local-time').innerText = formattedLocal;
-                    
-                    if(state.team === 'red') square.style.backgroundColor = state.accelerated ? '#c0392b' : 'var(--red-team)';
-                    else square.style.backgroundColor = state.accelerated ? '#2980b9' : 'var(--blue-team)';
                 } else if (state.phase === 'base') {
                     document.getElementById('screen-base').classList.add('active');
                     document.getElementById('base-global-time').innerText = formattedGlobal;
@@ -476,7 +410,6 @@
                 
                 const statusDiv = document.getElementById('def-status');
                 const localContainer = document.getElementById('def-local-container');
-                const speedWarning = document.getElementById('def-speed-warning');
 
                 const phaseMap = {
                     menu: "Waiting for Attackers to Start...",
@@ -488,13 +421,17 @@
                     gameover: "VICTORY - You successfully defended the territory!"
                 };
 
-                statusDiv.innerText = `Phase: ${phaseMap[state.phase] || ''}`;
+                // Add indicator if game is paused
+                let statusText = `Phase: ${phaseMap[state.phase] || ''}`;
+                if (state.paused && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover') {
+                    statusText += " (CAPTURE PAUSED)";
+                }
+                statusDiv.innerText = statusText;
 
                 if (state.phase.startsWith('cp')) {
                     localContainer.style.display = 'block';
                     document.getElementById('def-local-time').innerText = formattedLocal;
-                    speedWarning.style.display = state.accelerated ? 'block' : 'none';
-                    statusDiv.style.backgroundColor = 'var(--red-team)';
+                    statusDiv.style.backgroundColor = state.paused ? '#e67e22' : 'var(--red-team)';
                 } else {
                     localContainer.style.display = 'none';
                     statusDiv.style.backgroundColor = 'rgba(255,255,255,0.1)';
