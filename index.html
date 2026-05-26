@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Capture The Point</title>
+    <title>CP RUSH Lithilas</title>
     <style>
         :root {
             --red-team: #e74c3c;
@@ -45,156 +45,142 @@
 </head>
 <body>
 
-    <!-- Global Pause Overlay -->
     <div id="paused-overlay">
-        <h1>GAME PAUSED</h1>
-        <p style="font-size: 1.2rem;">Capture timer is frozen.</p>
-        <p style="color: var(--accent); font-weight: bold; margin-top: 20px;">GLOBAL TIME IS STILL RUNNING:</p>
+        <h1>GYNĖJAI LAIKĄ SUSTABDĖ</h1>
+        <p style="font-size: 1.2rem;">Užėmimo laikas sustabdytas.</p>
+        <p style="color: var(--accent); font-weight: bold; margin-top: 20px;">BENDRO ŽAIDIMO LAIKAS VIS DAR EINA:</p>
         <div class="timer-box global-timer" id="pause-global-time" style="margin-bottom: 30px; font-size: 3rem;">105:00</div>
-        <!-- FIXED: Removed display:none so the resume button actually shows up -->
-        <button class="btn btn-pause-toggle" style="background-color: #27ae60;" id="resume-btn">Resume Game</button>
+        <button class="btn btn-pause-toggle" style="background-color: #27ae60;" id="resume-btn">Tęsti Žaidimą</button>
     </div>
 
-    <!-- Attacker Pause Button -->
-    <button class="btn btn-pause btn-pause-toggle" id="top-pause-btn">Pause</button>
+    <button class="btn btn-pause btn-pause-toggle" id="top-pause-btn">Pauzė</button>
 
-    <!-- 0. LOADING SCREEN -->
     <div id="screen-loading" class="screen active">
-        <h1 id="loading-header">Connecting...</h1>
-        <p id="loading-sub">Synchronizing with Firebase server</p>
+        <h1 id="loading-header">Jungiamasi...</h1>
+        <p id="loading-sub">Sinchronizuojama su Firebase serveriu</p>
     </div>
 
-    <!-- 1. ROLE SELECTION -->
     <div id="screen-role" class="screen">
-        <h1>Select Role</h1>
-        <button class="btn" onclick="setRole('attacker')">ATTACKER</button>
-        <button class="btn" onclick="setRole('defender')">DEFENDER (View Only)</button>
+        <h1>Pasirinkite Rolę</h1>
+        <button class="btn" onclick="setRole('attacker')">PUOLĖJAS</button>
+        <button class="btn" onclick="setRole('defender')">GYNĖJAS</button>
         
-        <!-- HIDDEN GM BUTTON -->
-        <div class="gm-secret-btn" onclick="setRole('gm')">GM</div>
+        <div class="gm-secret-btn" onclick="setRole('gm')">Žaidimo teisėjas</div>
     </div>
 
-    <!-- 2. MAIN MENU (Attackers Only) -->
     <div id="screen-menu" class="screen">
-        <h1>Game Setup</h1>
+        <h1>Žaidimo Nustatymai</h1>
         <div style="margin-bottom: 20px;">
-            <h3>Select Team</h3>
-            <button class="btn btn-red" onclick="selectTeam('red')">RED TEAM</button>
-            <button class="btn btn-blue" onclick="selectTeam('blue')">BLUE TEAM</button>
+            <h3>Pasirinkite Komandą</h3>
+            <button class="btn btn-red" onclick="selectTeam('red')">RAUDONA KOMANDA</button>
+            <button class="btn btn-blue" onclick="selectTeam('blue')">MĖLYNA KOMANDA</button>
         </div>
         <div style="margin-bottom: 20px;">
-            <h3>Select Mode</h3>
-            <button class="btn" onclick="selectMode('normal')">NORMAL MODE</button>
-            <button class="btn" onclick="selectMode('demo')">DEMO MODE</button>
+            <h3>Pasirinkite Režimą</h3>
+            <button class="btn" onclick="selectMode('normal')">ĮPRASTAS REŽIMAS</button>
+            <button class="btn" onclick="selectMode('demo')">DEMO REŽIMAS</button>
         </div>
-        <h2 id="setup-summary">Team: None | Mode: None</h2>
-        <button class="btn" style="background-color: #27ae60;" onclick="startGame()">START GAME</button>
+        <h2 id="setup-summary">Komanda: Nėra | Režimas: Nėra</h2>
+        <button class="btn" style="background-color: #27ae60;" onclick="startGame()">PRADĖTI ŽAIDIMĄ</button>
     </div>
 
-    <!-- 3. TRAVEL PHASE (Pre-CP) -->
     <div id="screen-travel" class="screen">
-        <h1 id="travel-title">Traveling...</h1>
+        <h1 id="travel-title">Keliaujama...</h1>
         <div class="timers">
-            <div class="timer-label">Global Time Remaining</div>
+            <div class="timer-label">Liko bendro laiko</div>
             <div class="timer-box global-timer" id="travel-global-time">105:00</div>
         </div>
-        <p style="margin-bottom: 30px;">Physically move to the next Control Point.</p>
-        <button class="btn" style="background-color: #27ae60;" onclick="arriveAtPoint()">WE HAVE ARRIVED</button>
+        <p style="margin-bottom: 30px;">Judėkite prie kito kontrolės taško.</p>
+        <button class="btn" style="background-color: #27ae60;" onclick="arriveAtPoint()">MES ATVYKOME</button>
     </div>
 
-    <!-- 4. CAPTURE PHASE (CP) -->
     <div id="screen-capture" class="screen">
-        <h1 id="capture-title">Capturing CP1</h1>
+        <h1 id="capture-title">Užimamas 1 taškas</h1>
         <div class="timers">
             <div>
-                <div class="timer-label">Global Time Remaining</div>
+                <div class="timer-label">Liko bendro laiko</div>
                 <div class="timer-box global-timer" id="capture-global-time">105:00</div>
             </div>
             <div>
-                <div class="timer-label">Capture Progress</div>
+                <div class="timer-label">Užėmimo progresas</div>
                 <div class="timer-box" id="capture-local-time">20:00</div>
             </div>
         </div>
         
-        <p style="color: #bdc3c7; margin-top: 10px;">Defend this point until the capture timer hits zero.</p>
+        <p style="color: #bdc3c7; margin-top: 10px;">Ginkite šį tašką, kol užėmimo laikas pasieks nulį.</p>
     </div>
 
-    <!-- 5. BASE CAPTURED INTERMISSION -->
     <div id="screen-base" class="screen">
-        <h1>BASE CAPTURED!</h1>
+        <h1>TAŠKAS UŽIMTA!</h1>
         <div class="timers">
-            <div class="timer-label">Global Time Remaining</div>
+            <div class="timer-label">Liko bendro laiko</div>
             <div class="timer-box global-timer" id="base-global-time">105:00</div>
         </div>
-        <h2 style="color: #2ecc71; margin-top: 10px;">Your new base is Point 1.</h2>
-        <p style="margin-bottom: 20px;">Prepare to travel to the final control point.</p>
-        <button class="btn" style="background-color: #2980b9;" onclick="continueToBaseTravel()">CONTINUE</button>
+        <h2 style="color: #2ecc71; margin-top: 10px;">Jūsų nauja bazė yra pirmasis taškas (Stalas).</h2>
+        <p style="margin-bottom: 20px;">Pasiruoškite keliauti į paskutinį kontrolės tašką.</p>
+        <button class="btn" style="background-color: #2980b9;" onclick="continueToBaseTravel()">TĘSTI</button>
     </div>
 
-    <!-- 6. END SCREENS -->
     <div id="screen-end" class="screen">
-        <h1 id="end-title" style="font-size: 4rem;">VICTORY</h1>
-        <p id="end-subtitle">All points captured in time.</p>
-        <button class="btn" onclick="resetApp()">Back to Menu</button>
+        <h1 id="end-title" style="font-size: 4rem;">PERGALĖ</h1>
+        <p id="end-subtitle">Visi taškai laiku užimti.</p>
+        <button class="btn" onclick="resetApp()">Atgal į Meniu</button>
     </div>
 
-    <!-- 7. DEFENDER DASHBOARD -->
     <div id="screen-defender" class="screen">
-        <h1>Defender Dashboard</h1>
-        <h2 id="def-team-display">Waiting for Attackers...</h2>
+        <h1>Gynėjo Ekranas</h1>
+        <h2 id="def-team-display">Laukiama puolėjų...</h2>
         
         <div class="timers">
             <div>
-                <div class="timer-label">Defense Global Time Limit</div>
+                <div class="timer-label">Bendras gynybos laikas</div>
                 <div class="timer-box global-timer" id="def-global-time">105:00</div>
             </div>
             <div id="def-local-container" style="display: none;">
-                <div class="timer-label" id="def-local-label">Current Capture Timer</div>
+                <div class="timer-label" id="def-local-label">Dabartinis užėmimo laikas</div>
                 <div class="timer-box" id="def-local-time">--:--</div>
             </div>
         </div>
 
         <div class="status-indicator" id="def-status">
-            Current Phase: Waiting to Start
+            Dabartinė fazė: Laukiama pradžios
         </div>
     </div>
 
-    <!-- 8. GAME MASTER DASHBOARD (HIDDEN) -->
     <div id="screen-gm" class="screen">
-        <h1 style="color: #9b59b6;">Game Master Console</h1>
+        <h1 style="color: #9b59b6;">Žaidimo taisėjo Konsolė</h1>
         <div class="status-indicator" id="gm-status" style="font-weight: bold;">
-            Phase: Menu
+            Fazė: Meniu
         </div>
         
         <div class="timers" style="flex-direction: row; justify-content: center; max-width: 500px;">
             <div style="margin: 0 15px;">
-                <div class="timer-label">Global Timer</div>
+                <div class="timer-label">Bendras Laikas</div>
                 <div class="timer-box global-timer" id="gm-global-time">105:00</div>
             </div>
             <div style="margin: 0 15px;">
-                <div class="timer-label">Local Timer</div>
+                <div class="timer-label">Taško laikas</div>
                 <div class="timer-box" id="gm-local-time" style="color: #3498db;">--:--</div>
             </div>
         </div>
 
         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; width: 100%; max-width: 400px; margin-bottom: 20px;">
-            <h3 style="margin-bottom: 10px;">Setup (Before Start)</h3>
-            <button class="btn btn-red" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectTeam('red')">RED</button>
-            <button class="btn btn-blue" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectTeam('blue')">BLUE</button><br>
-            <button class="btn" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectMode('normal')">NORMAL</button>
+            <h3 style="margin-bottom: 10px;">Nustatymai (Prieš Pradedant)</h3>
+            <button class="btn btn-red" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectTeam('red')">RAUDONA</button>
+            <button class="btn btn-blue" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectTeam('blue')">MĖLYNA</button><br>
+            <button class="btn" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectMode('normal')">ĮPRASTAS</button>
             <button class="btn" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectMode('demo')">DEMO</button>
-            <div id="gm-setup-summary" style="margin-top:10px; font-weight: bold; color: #f1c40f;">Setup: None / None</div>
+            <div id="gm-setup-summary" style="margin-top:10px; font-weight: bold; color: #f1c40f;">Nustatymai: Nėra / Nėra</div>
         </div>
 
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 500px;">
-            <button class="btn" style="background-color: #27ae60; width: 45%; margin: 5px;" onclick="gmStartGame()">FORCE START</button>
-            <button class="btn btn-pause-toggle" style="background-color: #e67e22; width: 45%; margin: 5px; display: block;">TOGGLE PAUSE</button>
-            <button class="btn" style="background-color: #8e44ad; width: 45%; margin: 5px;" onclick="gmNextPhase()">NEXT PHASE</button>
-            <button class="btn" style="background-color: #c0392b; width: 45%; margin: 5px;" onclick="gmResetApp()">RESET GAME</button>
+            <button class="btn" style="background-color: #27ae60; width: 45%; margin: 5px;" onclick="gmStartGame()">PRIVERSTINAI PRADĖTI</button>
+            <button class="btn btn-pause-toggle" style="background-color: #e67e22; width: 45%; margin: 5px; display: block;">ĮJUNGTI / IŠJUNGTI PAUZĘ</button>
+            <button class="btn" style="background-color: #8e44ad; width: 45%; margin: 5px;" onclick="gmNextPhase()">KITA FAZĖ</button>
+            <button class="btn" style="background-color: #c0392b; width: 45%; margin: 5px;" onclick="gmResetApp()">PERKRAUTI ŽAIDIMĄ</button>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
@@ -223,7 +209,7 @@
             demo: { cp1: 3 * 60, cp2: 2 * 60, cp3: 1 * 60 }
         };
 
-        let role = null; // 'attacker', 'defender', or 'gm'
+        let role = null; 
         let setupTeam = null;
         let setupMode = null;
         let masterTickInterval = null;
@@ -244,7 +230,7 @@
             if (data) {
                 state = data;
             } else {
-                set(gameRef, state).catch(err => console.error("Write error:", err));
+                set(gameRef, state).catch(err => console.error("Įrašymo klaida:", err));
             }
 
             if (!isInitialized) {
@@ -266,11 +252,11 @@
                 updateUI();
             }
         }, (error) => {
-            document.getElementById('loading-header').innerText = "Firebase Error!";
+            document.getElementById('loading-header').innerText = "Firebase Klaida!";
             document.getElementById('loading-header').style.color = "#e74c3c";
             
             if (error.message.includes("Permission denied")) {
-                document.getElementById('loading-sub').innerHTML = `<b>Permission Denied!</b><br>Check Firebase Rules.`;
+                document.getElementById('loading-sub').innerHTML = `<b>Prieiga uždrausta!</b><br>Patikrinkite Firebase taisykles.`;
             } else {
                 document.getElementById('loading-sub').innerText = error.message;
             }
@@ -290,13 +276,14 @@
         window.selectMode = (mode) => { setupMode = mode; updateSetupSummary(); };
         
         function updateSetupSummary() {
-            document.getElementById('setup-summary').innerText = `Team: ${setupTeam || 'None'} | Mode: ${setupMode || 'None'}`;
-            document.getElementById('gm-setup-summary').innerText = `Setup: ${setupTeam || 'None'} / ${setupMode || 'None'}`;
+            const t = setupTeam === 'red' ? 'Raudona' : setupTeam === 'blue' ? 'Mėlyna' : 'Nėra';
+            const m = setupMode === 'normal' ? 'Įprastas' : setupMode === 'demo' ? 'Demo' : 'Nėra';
+            document.getElementById('setup-summary').innerText = `Komanda: ${t} | Režimas: ${m}`;
+            document.getElementById('gm-setup-summary').innerText = `Nustatymai: ${t} / ${m}`;
         }
 
-        // --- Attacker game initialization ---
         window.startGame = () => {
-            if (!setupTeam || !setupMode) return alert("Select Team and Mode first!");
+            if (!setupTeam || !setupMode) return alert("Pirmiausia pasirinkite komandą ir režimą!");
             state = { phase: 'pre1', globalTime: TIMERS.global, cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, paused: false, mode: setupMode, team: setupTeam };
             pushState();
             startMasterTick();
@@ -315,10 +302,9 @@
             pushState();
         };
 
-        // --- Game Master exact initialization override ---
         window.gmStartGame = () => {
-            if (state.phase !== 'menu' && !confirm("Game is already running! Force restart?")) return;
-            if (!setupTeam || !setupMode) return alert("Select Team and Mode in Setup first!");
+            if (state.phase !== 'menu' && !confirm("Žaidimas jau vyksta! Priverstinai perkrauti?")) return;
+            if (!setupTeam || !setupMode) return alert("Pirmiausia nustatymuose pasirinkite Komandą ir Režimą!");
             
             state = { 
                 phase: 'pre1', 
@@ -333,13 +319,13 @@
         };
 
         window.gmResetApp = () => {
-            if (!confirm("Are you sure you want to completely RESET the global game state?")) return;
+            if (!confirm("Ar tikrai norite visiškai PERKRAUTI bendrą žaidimo būseną?")) return;
             const resetState = { phase: 'menu', globalTime: TIMERS.global, cpTime: 0, paused: false, mode: 'normal', team: 'red' };
             set(gameRef, resetState);
         };
 
         window.gmNextPhase = () => {
-            if (state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return alert("Start the game first.");
+            if (state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return alert("Pirmiausia pradėkite žaidimą.");
             
             if (state.phase === 'pre1') { state.phase = 'cp1'; }
             else if (state.phase === 'cp1') { state.phase = 'pre2'; state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2; }
@@ -361,7 +347,6 @@
             }
         };
 
-        // --- Pause Mechanic ---
         const togglePause = () => {
             if (role !== 'attacker' && role !== 'gm') return;
             state.paused = !state.paused;
@@ -369,7 +354,6 @@
         };
         document.querySelectorAll('.btn-pause-toggle').forEach(btn => btn.addEventListener('click', togglePause));
 
-        // --- Master Game Loop ---
         function startMasterTick() {
             if (masterTickInterval) clearInterval(masterTickInterval);
             
@@ -416,7 +400,6 @@
             }
         }
 
-        // --- UI Rendering ---
         function updateUI() {
             const overlay = document.getElementById('paused-overlay');
             overlay.style.display = (state.paused && role !== 'gm') ? 'flex' : 'none';
@@ -433,11 +416,11 @@
                 } else if (state.phase.startsWith('pre')) {
                     document.getElementById('screen-travel').classList.add('active');
                     const num = state.phase.replace('pre', '');
-                    document.getElementById('travel-title').innerText = `Traveling to CP${num}`;
+                    document.getElementById('travel-title').innerText = `Keliaujama į KT${num}`;
                     document.getElementById('travel-global-time').innerText = formattedGlobal;
                 } else if (state.phase.startsWith('cp')) {
                     document.getElementById('screen-capture').classList.add('active');
-                    document.getElementById('capture-title').innerText = `Capturing CP${state.phase.replace('cp', '')}`;
+                    document.getElementById('capture-title').innerText = `Užimamas KT${state.phase.replace('cp', '')}`;
                     document.getElementById('capture-global-time').innerText = formattedGlobal;
                     document.getElementById('capture-local-time').innerText = formattedLocal;
                 } else if (state.phase === 'base') {
@@ -448,28 +431,39 @@
                     const endTitle = document.getElementById('end-title');
                     const endSub = document.getElementById('end-subtitle');
                     if (state.phase === 'victory') {
-                        endTitle.innerText = "VICTORY";
+                        endTitle.innerText = "PERGALĖ";
                         endTitle.style.color = "#2ecc71";
-                        endSub.innerText = `The ${state.team} team secured all points!`;
+                        endSub.innerText = `${state.team === 'red' ? 'Raudona' : 'Mėlyna'} komanda užėmė visus taškus!`;
                     } else {
-                        endTitle.innerText = "GAME OVER";
+                        endTitle.innerText = "ŽAIDIMAS BAIGTAS";
                         endTitle.style.color = "#e74c3c";
-                        endSub.innerText = "The Defenders successfully held the territory. Time ran out.";
+                        endSub.innerText = "Gynėjai sėkmingai išlaikė teritoriją. Laikas baigėsi.";
                     }
                 }
             } else if (role === 'defender') {
                 document.getElementById('screen-defender').classList.add('active');
-                document.getElementById('def-team-display').innerText = state.team === 'red' ? '🔴 RED TEAM ATTACKING' : '🔵 BLUE TEAM ATTACKING';
+                document.getElementById('def-team-display').innerText = state.team === 'red' ? '🔴 PUOLA RAUDONA KOMANDA' : '🔵 PUOLA MĖLYNA KOMANDA';
                 document.getElementById('def-global-time').innerText = formattedGlobal;
                 
                 const statusDiv = document.getElementById('def-status');
                 const localContainer = document.getElementById('def-local-container');
 
-                const phaseMap = { menu: "Waiting for Attackers to Start...", pre1: "Attackers traveling to CP1", cp1: "Defending CP1!", pre2: "Attackers traveling to CP2", cp2: "Defending CP2!", base: "Base Captured by Attackers - Waiting to travel", pre3: "Attackers traveling to Final CP", cp3: "Defending Final CP!", victory: "DEFEAT - Attackers captured all points.", gameover: "VICTORY - You successfully defended the territory!" };
+                const phaseMap = { 
+                    menu: "Laukiama kol puolėjai pradės...", 
+                    pre1: "Puolėjai keliauja į KT1", 
+                    cp1: "Ginama KT1!", 
+                    pre2: "Puolėjai keliauja į KT2", 
+                    cp2: "Ginama KT2!", 
+                    base: "Puolėjai užėmė bazę - laukiama kelionės", 
+                    pre3: "Puolėjai keliauja į paskutinį KT", 
+                    cp3: "Ginamas paskutinis KT!", 
+                    victory: "PRALAIMĖJIMAS - Puolėjai užėmė visus taškus.", 
+                    gameover: "PERGALĖ - Sėkmingai apgynėte teritoriją!" 
+                };
 
-                let statusText = `Phase: ${phaseMap[state.phase] || ''}`;
+                let statusText = `Fazė: ${phaseMap[state.phase] || ''}`;
                 if (state.paused && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover') {
-                    statusText += " (CAPTURE PAUSED)";
+                    statusText += " (UŽĖMIMAS SUSTABDYTAS)";
                 }
                 statusDiv.innerText = statusText;
 
@@ -486,9 +480,13 @@
                 document.getElementById('gm-global-time').innerText = formattedGlobal;
                 document.getElementById('gm-local-time').innerText = state.phase.startsWith('cp') ? formattedLocal : '--:--';
                 
-                let phaseText = state.phase.toUpperCase();
-                if (state.paused) phaseText += " (PAUSED)";
-                document.getElementById('gm-status').innerText = `Phase: ${phaseText}`;
+                const gmPhaseMap = {
+                    menu: "MENIU", pre1: "KELIONĖ 1", cp1: "KT 1", pre2: "KELIONĖ 2", cp2: "KT 2", base: "BAZĖ", pre3: "KELIONĖ 3", cp3: "KT 3", victory: "PERGALĖ", gameover: "PABAIGA"
+                };
+                
+                let phaseText = gmPhaseMap[state.phase] || state.phase.toUpperCase();
+                if (state.paused) phaseText += " (PAUZĖ)";
+                document.getElementById('gm-status').innerText = `Fazė: ${phaseText}`;
                 
                 if (state.paused) document.getElementById('gm-status').style.backgroundColor = '#e67e22';
                 else document.getElementById('gm-status').style.backgroundColor = 'rgba(255,255,255,0.1)';
