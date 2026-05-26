@@ -51,7 +51,8 @@
         <p style="font-size: 1.2rem;">Capture timer is frozen.</p>
         <p style="color: var(--accent); font-weight: bold; margin-top: 20px;">GLOBAL TIME IS STILL RUNNING:</p>
         <div class="timer-box global-timer" id="pause-global-time" style="margin-bottom: 30px; font-size: 3rem;">105:00</div>
-        <button class="btn btn-pause-toggle" style="background-color: #27ae60; display:none;" id="resume-btn">Resume Game</button>
+        <!-- FIXED: Removed display:none so the resume button actually shows up -->
+        <button class="btn btn-pause-toggle" style="background-color: #27ae60;" id="resume-btn">Resume Game</button>
     </div>
 
     <!-- Attacker Pause Button -->
@@ -216,7 +217,6 @@
         const db = getDatabase(app);
         const gameRef = ref(db, 'game');
 
-        // UPDATED TIMING CONF: 20 min, 18 min, 15 min
         const TIMERS = {
             global: 105 * 60,
             normal: { cp1: 20 * 60, cp2: 18 * 60, cp3: 15 * 60 },
@@ -320,7 +320,6 @@
             if (state.phase !== 'menu' && !confirm("Game is already running! Force restart?")) return;
             if (!setupTeam || !setupMode) return alert("Select Team and Mode in Setup first!");
             
-            // ADJUSTED: GM starts 'pre1' (Travel Phase). Global timer runs, local is locked until entry.
             state = { 
                 phase: 'pre1', 
                 globalTime: TIMERS.global, 
