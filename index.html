@@ -42,7 +42,7 @@
         /* Hidden GM Button */
         .gm-secret-btn { position: absolute; bottom: 0; right: 0; width: 80px; height: 80px; background: transparent; color: rgba(255,255,255,0.02); font-size: 10px; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; cursor: pointer; z-index: 50; }
 
-        /* --- ŽEMĖLAPIO STILIAI (NAUJA) --- */
+        /* ŽEMĖLAPIO STILIAI */
         .map-container {
             position: relative;
             width: 100%;
@@ -56,27 +56,44 @@
             width: 100%;
             display: block;
         }
+        
+        /* Gynėjų laikmačio perdanga ant žemėlapio */
+        .defender-map-timers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            background: rgba(0, 0, 0, 0.7); /* 30% skaidrumas */
+            padding: 10px;
+            z-index: 20;
+            margin: 0;
+            border-radius: 0;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        .defender-map-timers .timer-box { font-size: 1.5rem; }
+        .defender-map-timers .timer-label { font-size: 0.8rem; }
+
         .map-point {
             position: absolute;
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            transform: translate(-50%, -50%); /* Centruojame tašką pagal koordinates */
+            transform: translate(-50%, -50%);
             border: 2px solid white;
             transition: background-color 0.3s, box-shadow 0.3s;
             z-index: 10;
         }
-        /* Koordinačių pritaikymas */
         #map-cp1 { top: 33%; left: 50%; }
         #map-cp2 { top: 50%; left: 45%; }
-        #map-cp3 { top: 60%; left: 60%; }
+        #map-cp3 { top: 60%; left: 70%; } /* Pakeista iš 60% į 70% */
 
-        /* Taškų spalvų klasės */
         .solid-gray { background-color: rgba(127, 140, 141, 0.8); }
         .solid-red { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
         .solid-blue { background-color: var(--blue-team); box-shadow: 0 0 15px var(--blue-team); }
 
-        /* Mirksėjimo animacijos */
         @keyframes blinkRed {
             0%, 100% { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
             50% { background-color: rgba(231, 76, 60, 0.2); box-shadow: none; }
@@ -176,28 +193,26 @@
     <div id="screen-defender" class="screen">
         <h1>Gynėjo Ekranas</h1>
 
-        <!-- NAUJA: Interaktyvus žemėlapis -->
         <div class="map-container" id="defender-map">
+            
+            <div class="timers defender-map-timers">
+                <div>
+                    <div class="timer-label">Bendras laikas</div>
+                    <div class="timer-box global-timer" id="def-global-time">105:00</div>
+                </div>
+                <div id="def-local-container" style="display: none;">
+                    <div class="timer-label" id="def-local-label">Užėmimo laikas</div>
+                    <div class="timer-box" id="def-local-time">--:--</div>
+                </div>
+            </div>
+
             <img src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Žemėlapis">
             <div class="map-point" id="map-cp1"></div>
             <div class="map-point" id="map-cp2"></div>
             <div class="map-point" id="map-cp3"></div>
         </div>
 
-        <h2 id="def-team-display">Laukiama puolėjų...</h2>
-        
-        <div class="timers">
-            <div>
-                <div class="timer-label">Bendras gynybos laikas</div>
-                <div class="timer-box global-timer" id="def-global-time">105:00</div>
-            </div>
-            <div id="def-local-container" style="display: none;">
-                <div class="timer-label" id="def-local-label">Dabartinis užėmimo laikas</div>
-                <div class="timer-box" id="def-local-time">--:--</div>
-            </div>
-        </div>
-
-        <div class="status-indicator" id="def-status">
+        <div class="status-indicator" id="def-status" style="margin-top: 0;">
             Dabartinė fazė: Laukiama pradžios
         </div>
     </div>
@@ -241,6 +256,7 @@
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
             authDomain: "cprush-2249a.firebaseapp.com",
@@ -272,6 +288,7 @@
         let state = {
             phase: 'menu', 
             globalEndTime: 0,
+            globalRemaining: 0, 
             cpEndTime: 0,
             cpRemaining: 0, 
             paused: false,
@@ -297,7 +314,7 @@
             }
 
             if (role) {
-                if (!clockTickInterval && state.phase !== 'menu') {
+                if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
                     startClockTick();
                 }
                 if (state.phase === 'menu' && clockTickInterval) {
@@ -343,6 +360,7 @@
             state = { 
                 phase: 'pre1', 
                 globalEndTime: Date.now() + (TIMERS.global * 1000), 
+                globalRemaining: 0,
                 cpEndTime: 0,
                 cpRemaining: (setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1) * 1000, 
                 paused: false, 
@@ -374,6 +392,7 @@
             state = { 
                 phase: 'pre1', 
                 globalEndTime: Date.now() + (TIMERS.global * 1000), 
+                globalRemaining: 0,
                 cpEndTime: 0,
                 cpRemaining: (setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1) * 1000, 
                 paused: false, 
@@ -386,7 +405,7 @@
 
         window.gmResetApp = () => {
             if (!confirm("Ar tikrai norite visiškai PERKRAUTI bendrą žaidimo būseną?")) return;
-            const resetState = { phase: 'menu', globalEndTime: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
+            const resetState = { phase: 'menu', globalEndTime: 0, globalRemaining: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
             set(gameRef, resetState);
         };
 
@@ -399,14 +418,18 @@
             else if (state.phase === 'cp2') { state.phase = 'base'; state.cpEndTime = 0; }
             else if (state.phase === 'base') { state.phase = 'pre3'; state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3) * 1000; state.cpEndTime = 0; }
             else if (state.phase === 'pre3') { state.phase = 'cp3'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            else if (state.phase === 'cp3') { state.phase = 'victory'; state.cpEndTime = 0; }
+            else if (state.phase === 'cp3') { 
+                state.phase = 'victory'; 
+                state.cpEndTime = 0; 
+                state.globalRemaining = Math.max(0, state.globalEndTime - Date.now()); 
+            }
             
             pushState();
         }
 
         window.resetApp = () => {
             if (role === 'attacker') {
-                const resetState = { phase: 'menu', globalEndTime: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
+                const resetState = { phase: 'menu', globalEndTime: 0, globalRemaining: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
                 set(gameRef, resetState).then(() => location.reload());
             } else {
                 location.reload();
@@ -458,6 +481,7 @@
                             state.phase = 'base';
                         } else if (state.phase === 'cp3') {
                             state.phase = 'victory';
+                            state.globalRemaining = Math.max(0, state.globalEndTime - Date.now());
                         }
                         phaseChanged = true;
                     }
@@ -481,7 +505,11 @@
             let currentGlobalSec = 0;
             let currentLocalSec = 0;
 
-            if (state.globalEndTime > 0) {
+            if (state.phase === 'victory') {
+                currentGlobalSec = Math.floor((state.globalRemaining || 0) / 1000);
+            } else if (state.phase === 'gameover') {
+                currentGlobalSec = 0;
+            } else if (state.globalEndTime > 0) {
                 currentGlobalSec = Math.max(0, Math.floor((state.globalEndTime - now) / 1000));
             }
 
@@ -524,7 +552,7 @@
                     if (state.phase === 'victory') {
                         endTitle.innerText = "PERGALĖ";
                         endTitle.style.color = "#2ecc71";
-                        endSub.innerText = `${state.team === 'red' ? 'Raudona' : 'Mėlyna'} komanda užėmė visus taškus!`;
+                        endSub.innerText = `${state.team === 'red' ? 'Raudona' : 'Mėlyna'} komanda užėmė visus taškus! \nLiko laiko: ${formattedGlobal}`;
                     } else {
                         endTitle.innerText = "ŽAIDIMAS BAIGTAS";
                         endTitle.style.color = "#e74c3c";
@@ -533,7 +561,6 @@
                 }
             } else if (role === 'defender') {
                 document.getElementById('screen-defender').classList.add('active');
-                document.getElementById('def-team-display').innerText = state.team === 'red' ? '🔴 PUOLA RAUDONA KOMANDA' : '🔵 PUOLA MĖLYNA KOMANDA';
                 document.getElementById('def-global-time').innerText = formattedGlobal;
                 
                 const statusDiv = document.getElementById('def-status');
@@ -567,7 +594,6 @@
                     statusDiv.style.backgroundColor = 'rgba(255,255,255,0.1)';
                 }
 
-                // --- NAUJA: Žemėlapio taškų logikos atnaujinimas ---
                 const cp1El = document.getElementById('map-cp1');
                 const cp2El = document.getElementById('map-cp2');
                 const cp3El = document.getElementById('map-cp3');
@@ -575,22 +601,20 @@
                 const blinkClass = state.team === 'red' ? 'blinking-red' : 'blinking-blue';
                 const solidClass = state.team === 'red' ? 'solid-red' : 'solid-blue';
 
-                // Funkcija, kuri pagal fazę nustato taško būseną
                 const setPointState = (el, uncapturedPhases, capturingPhase) => {
-                    el.className = 'map-point'; // Išvalome senas klases
+                    el.className = 'map-point'; 
                     
                     if (state.phase === 'gameover') {
-                        el.classList.add('solid-gray'); // Jei baigėsi laikas, rodome kaip neužimtą (arba paliekame buvusį, bet pilka aiškiau)
+                        el.classList.add('solid-gray'); 
                     } else if (uncapturedPhases.includes(state.phase)) {
-                        el.classList.add('solid-gray'); // Dar neužimtas
+                        el.classList.add('solid-gray'); 
                     } else if (state.phase === capturingPhase) {
-                        el.classList.add(blinkClass); // Šiuo metu užiminėjamas (mirksi)
+                        el.classList.add(blinkClass); 
                     } else {
-                        el.classList.add(solidClass); // Jau užimtas (šviečia ištisai)
+                        el.classList.add(solidClass); 
                     }
                 };
 
-                // Pritaikius taisykles kiekvienam taškui:
                 setPointState(cp1El, ['menu', 'pre1'], 'cp1');
                 setPointState(cp2El, ['menu', 'pre1', 'cp1', 'pre2'], 'cp2');
                 setPointState(cp3El, ['menu', 'pre1', 'cp1', 'pre2', 'cp2', 'base', 'pre3'], 'cp3');
