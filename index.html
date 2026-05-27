@@ -41,6 +41,52 @@
 
         /* Hidden GM Button */
         .gm-secret-btn { position: absolute; bottom: 0; right: 0; width: 80px; height: 80px; background: transparent; color: rgba(255,255,255,0.02); font-size: 10px; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; cursor: pointer; z-index: 50; }
+
+        /* --- ŽEMĖLAPIO STILIAI (NAUJA) --- */
+        .map-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        .map-container img {
+            width: 100%;
+            display: block;
+        }
+        .map-point {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%); /* Centruojame tašką pagal koordinates */
+            border: 2px solid white;
+            transition: background-color 0.3s, box-shadow 0.3s;
+            z-index: 10;
+        }
+        /* Koordinačių pritaikymas */
+        #map-cp1 { top: 33%; left: 50%; }
+        #map-cp2 { top: 50%; left: 45%; }
+        #map-cp3 { top: 60%; left: 60%; }
+
+        /* Taškų spalvų klasės */
+        .solid-gray { background-color: rgba(127, 140, 141, 0.8); }
+        .solid-red { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
+        .solid-blue { background-color: var(--blue-team); box-shadow: 0 0 15px var(--blue-team); }
+
+        /* Mirksėjimo animacijos */
+        @keyframes blinkRed {
+            0%, 100% { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
+            50% { background-color: rgba(231, 76, 60, 0.2); box-shadow: none; }
+        }
+        @keyframes blinkBlue {
+            0%, 100% { background-color: var(--blue-team); box-shadow: 0 0 15px var(--blue-team); }
+            50% { background-color: rgba(52, 152, 219, 0.2); box-shadow: none; }
+        }
+        .blinking-red { animation: blinkRed 1s infinite; }
+        .blinking-blue { animation: blinkBlue 1s infinite; }
     </style>
 </head>
 <body>
@@ -129,6 +175,15 @@
 
     <div id="screen-defender" class="screen">
         <h1>Gynėjo Ekranas</h1>
+
+        <!-- NAUJA: Interaktyvus žemėlapis -->
+        <div class="map-container" id="defender-map">
+            <img src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Žemėlapis">
+            <div class="map-point" id="map-cp1"></div>
+            <div class="map-point" id="map-cp2"></div>
+            <div class="map-point" id="map-cp3"></div>
+        </div>
+
         <h2 id="def-team-display">Laukiama puolėjų...</h2>
         
         <div class="timers">
@@ -186,7 +241,6 @@
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
             authDomain: "cprush-2249a.firebaseapp.com",
@@ -212,10 +266,9 @@
         let role = null; 
         let setupTeam = null;
         let setupMode = null;
-        let clockTickInterval = null; // NAUJA: Lokaliam atvaizdavimui
+        let clockTickInterval = null;
         let isInitialized = false;
 
-        // NAUJA STATE STRUKTŪRA NAUDOJANT LAIKO ŽYMAS (TIMESTAMPS)
         let state = {
             phase: 'menu', 
             globalEndTime: 0,
@@ -272,7 +325,6 @@
                 document.getElementById('top-pause-btn').style.display = 'none';
             }
             updateUI();
-            // Start clock if game is already running
             if (state.phase !== 'menu' && !clockTickInterval) startClockTick();
         };
 
@@ -365,13 +417,11 @@
             if (role !== 'attacker' && role !== 'gm') return;
             
             if (!state.paused) {
-                // Sustabdom
                 if (state.phase.startsWith('cp')) {
                     state.cpRemaining = Math.max(0, state.cpEndTime - Date.now());
                 }
                 state.paused = true;
             } else {
-                // Atleidžiam
                 if (state.phase.startsWith('cp')) {
                     state.cpEndTime = Date.now() + state.cpRemaining;
                 }
@@ -381,29 +431,24 @@
         };
         document.querySelectorAll('.btn-pause-toggle').forEach(btn => btn.addEventListener('click', togglePause));
 
-        // TIKRINIMAS IR ATNAUJINIMAS KAS SEKUNDĘ (Nesiunčiant duomenų be reikalo)
         function startClockTick() {
             if (clockTickInterval) clearInterval(clockTickInterval);
             
             clockTickInterval = setInterval(() => {
                 if (state.phase === 'menu') return;
 
-                // VISIEMS ROLĖMS vizualiai atnaujinamas ekranas
                 updateUI();
 
-                // Tik Atakuojantis arba ŽM priima sprendimus ir siunčia juos į DB
                 if (role === 'attacker' || role === 'gm') {
                     if (state.phase === 'victory' || state.phase === 'gameover') return;
 
                     let now = Date.now();
                     let phaseChanged = false;
 
-                    // 1. Ar pasibaigė globalus laikas?
                     if (state.globalEndTime > 0 && now >= state.globalEndTime) {
                         state.phase = 'gameover';
                         phaseChanged = true;
                     }
-                    // 2. Ar pasibaigė vietinis laikas?
                     else if (!state.paused && state.phase.startsWith('cp') && state.cpEndTime > 0 && now >= state.cpEndTime) {
                         if (state.phase === 'cp1') {
                             state.phase = 'pre2';
@@ -419,7 +464,7 @@
 
                     if (phaseChanged) pushState();
                 }
-            }, 500); // 0.5s užtikrina greitesnę reakciją, neapkraunant Firebase
+            }, 500); 
         }
 
         function pushState() {
@@ -432,7 +477,6 @@
             const overlay = document.getElementById('paused-overlay');
             overlay.style.display = (state.paused && role !== 'gm') ? 'flex' : 'none';
 
-            // Dinamiškas laiko skaičiavimas iš Datų (Timestamps)
             let now = Date.now();
             let currentGlobalSec = 0;
             let currentLocalSec = 0;
@@ -522,6 +566,35 @@
                     localContainer.style.display = 'none';
                     statusDiv.style.backgroundColor = 'rgba(255,255,255,0.1)';
                 }
+
+                // --- NAUJA: Žemėlapio taškų logikos atnaujinimas ---
+                const cp1El = document.getElementById('map-cp1');
+                const cp2El = document.getElementById('map-cp2');
+                const cp3El = document.getElementById('map-cp3');
+                
+                const blinkClass = state.team === 'red' ? 'blinking-red' : 'blinking-blue';
+                const solidClass = state.team === 'red' ? 'solid-red' : 'solid-blue';
+
+                // Funkcija, kuri pagal fazę nustato taško būseną
+                const setPointState = (el, uncapturedPhases, capturingPhase) => {
+                    el.className = 'map-point'; // Išvalome senas klases
+                    
+                    if (state.phase === 'gameover') {
+                        el.classList.add('solid-gray'); // Jei baigėsi laikas, rodome kaip neužimtą (arba paliekame buvusį, bet pilka aiškiau)
+                    } else if (uncapturedPhases.includes(state.phase)) {
+                        el.classList.add('solid-gray'); // Dar neužimtas
+                    } else if (state.phase === capturingPhase) {
+                        el.classList.add(blinkClass); // Šiuo metu užiminėjamas (mirksi)
+                    } else {
+                        el.classList.add(solidClass); // Jau užimtas (šviečia ištisai)
+                    }
+                };
+
+                // Pritaikius taisykles kiekvienam taškui:
+                setPointState(cp1El, ['menu', 'pre1'], 'cp1');
+                setPointState(cp2El, ['menu', 'pre1', 'cp1', 'pre2'], 'cp2');
+                setPointState(cp3El, ['menu', 'pre1', 'cp1', 'pre2', 'cp2', 'base', 'pre3'], 'cp3');
+
             } else if (role === 'gm') {
                 document.getElementById('screen-gm').classList.add('active');
                 document.getElementById('gm-global-time').innerText = formattedGlobal;
