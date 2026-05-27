@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CP RUSH Lithilas</title>
+    <title>Taško Užėmimas</title>
     <style>
         :root {
             --red-team: #e74c3c;
@@ -46,7 +46,7 @@
 <body>
 
     <div id="paused-overlay">
-        <h1>GYNĖJAI LAIKĄ SUSTABDĖ</h1>
+        <h1>ŽAIDIMAS SUSTABDYTAS</h1>
         <p style="font-size: 1.2rem;">Užėmimo laikas sustabdytas.</p>
         <p style="color: var(--accent); font-weight: bold; margin-top: 20px;">BENDRO ŽAIDIMO LAIKAS VIS DAR EINA:</p>
         <div class="timer-box global-timer" id="pause-global-time" style="margin-bottom: 30px; font-size: 3rem;">105:00</div>
@@ -63,9 +63,9 @@
     <div id="screen-role" class="screen">
         <h1>Pasirinkite Rolę</h1>
         <button class="btn" onclick="setRole('attacker')">PUOLĖJAS</button>
-        <button class="btn" onclick="setRole('defender')">GYNĖJAS</button>
+        <button class="btn" onclick="setRole('defender')">GYNĖJAS (Tik stebėti)</button>
         
-        <div class="gm-secret-btn" onclick="setRole('gm')">Žaidimo teisėjas</div>
+        <div class="gm-secret-btn" onclick="setRole('gm')">ŽM</div>
     </div>
 
     <div id="screen-menu" class="screen">
@@ -90,12 +90,12 @@
             <div class="timer-label">Liko bendro laiko</div>
             <div class="timer-box global-timer" id="travel-global-time">105:00</div>
         </div>
-        <p style="margin-bottom: 30px;">Judėkite prie kito kontrolės taško.</p>
+        <p style="margin-bottom: 30px;">Fiziškai judėkite prie kito kontrolės taško.</p>
         <button class="btn" style="background-color: #27ae60;" onclick="arriveAtPoint()">MES ATVYKOME</button>
     </div>
 
     <div id="screen-capture" class="screen">
-        <h1 id="capture-title">Užimamas 1 taškas</h1>
+        <h1 id="capture-title">Užimamas KT1</h1>
         <div class="timers">
             <div>
                 <div class="timer-label">Liko bendro laiko</div>
@@ -111,12 +111,12 @@
     </div>
 
     <div id="screen-base" class="screen">
-        <h1>TAŠKAS UŽIMTA!</h1>
+        <h1>BAZĖ UŽIMTA!</h1>
         <div class="timers">
             <div class="timer-label">Liko bendro laiko</div>
             <div class="timer-box global-timer" id="base-global-time">105:00</div>
         </div>
-        <h2 style="color: #2ecc71; margin-top: 10px;">Jūsų nauja bazė yra pirmasis taškas (Stalas).</h2>
+        <h2 style="color: #2ecc71; margin-top: 10px;">Jūsų nauja bazė yra KT1.</h2>
         <p style="margin-bottom: 20px;">Pasiruoškite keliauti į paskutinį kontrolės tašką.</p>
         <button class="btn" style="background-color: #2980b9;" onclick="continueToBaseTravel()">TĘSTI</button>
     </div>
@@ -148,7 +148,7 @@
     </div>
 
     <div id="screen-gm" class="screen">
-        <h1 style="color: #9b59b6;">Žaidimo taisėjo Konsolė</h1>
+        <h1 style="color: #9b59b6;">Žaidimo Meistro Konsolė</h1>
         <div class="status-indicator" id="gm-status" style="font-weight: bold;">
             Fazė: Meniu
         </div>
@@ -159,7 +159,7 @@
                 <div class="timer-box global-timer" id="gm-global-time">105:00</div>
             </div>
             <div style="margin: 0 15px;">
-                <div class="timer-label">Taško laikas</div>
+                <div class="timer-label">Vietinis Laikas</div>
                 <div class="timer-box" id="gm-local-time" style="color: #3498db;">--:--</div>
             </div>
         </div>
@@ -212,13 +212,15 @@
         let role = null; 
         let setupTeam = null;
         let setupMode = null;
-        let masterTickInterval = null;
+        let clockTickInterval = null; // NAUJA: Lokaliam atvaizdavimui
         let isInitialized = false;
 
+        // NAUJA STATE STRUKTŪRA NAUDOJANT LAIKO ŽYMAS (TIMESTAMPS)
         let state = {
             phase: 'menu', 
-            globalTime: TIMERS.global,
-            cpTime: 0,
+            globalEndTime: 0,
+            cpEndTime: 0,
+            cpRemaining: 0, 
             paused: false,
             mode: 'normal',
             team: 'red'
@@ -242,12 +244,12 @@
             }
 
             if (role) {
-                if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
-                    startMasterTick();
+                if (!clockTickInterval && state.phase !== 'menu') {
+                    startClockTick();
                 }
-                if (state.phase === 'menu' && masterTickInterval) {
-                    clearInterval(masterTickInterval);
-                    masterTickInterval = null;
+                if (state.phase === 'menu' && clockTickInterval) {
+                    clearInterval(clockTickInterval);
+                    clockTickInterval = null;
                 }
                 updateUI();
             }
@@ -270,6 +272,8 @@
                 document.getElementById('top-pause-btn').style.display = 'none';
             }
             updateUI();
+            // Start clock if game is already running
+            if (state.phase !== 'menu' && !clockTickInterval) startClockTick();
         };
 
         window.selectTeam = (team) => { setupTeam = team; updateSetupSummary(); };
@@ -284,21 +288,30 @@
 
         window.startGame = () => {
             if (!setupTeam || !setupMode) return alert("Pirmiausia pasirinkite komandą ir režimą!");
-            state = { phase: 'pre1', globalTime: TIMERS.global, cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, paused: false, mode: setupMode, team: setupTeam };
+            state = { 
+                phase: 'pre1', 
+                globalEndTime: Date.now() + (TIMERS.global * 1000), 
+                cpEndTime: 0,
+                cpRemaining: (setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1) * 1000, 
+                paused: false, 
+                mode: setupMode, 
+                team: setupTeam 
+            };
             pushState();
-            startMasterTick();
+            startClockTick();
         };
 
         window.arriveAtPoint = () => {
-            if (state.phase === 'pre1') state.phase = 'cp1';
-            else if (state.phase === 'pre2') state.phase = 'cp2';
-            else if (state.phase === 'pre3') state.phase = 'cp3';
+            if (state.phase === 'pre1') { state.phase = 'cp1'; state.cpEndTime = Date.now() + state.cpRemaining; }
+            else if (state.phase === 'pre2') { state.phase = 'cp2'; state.cpEndTime = Date.now() + state.cpRemaining; }
+            else if (state.phase === 'pre3') { state.phase = 'cp3'; state.cpEndTime = Date.now() + state.cpRemaining; }
             pushState();
         };
 
         window.continueToBaseTravel = () => {
             state.phase = 'pre3';
-            state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3;
+            state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3) * 1000;
+            state.cpEndTime = 0;
             pushState();
         };
 
@@ -308,39 +321,40 @@
             
             state = { 
                 phase: 'pre1', 
-                globalTime: TIMERS.global, 
-                cpTime: setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1, 
+                globalEndTime: Date.now() + (TIMERS.global * 1000), 
+                cpEndTime: 0,
+                cpRemaining: (setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1) * 1000, 
                 paused: false, 
                 mode: setupMode, 
                 team: setupTeam 
             };
             pushState();
-            startMasterTick();
+            startClockTick();
         };
 
         window.gmResetApp = () => {
             if (!confirm("Ar tikrai norite visiškai PERKRAUTI bendrą žaidimo būseną?")) return;
-            const resetState = { phase: 'menu', globalTime: TIMERS.global, cpTime: 0, paused: false, mode: 'normal', team: 'red' };
+            const resetState = { phase: 'menu', globalEndTime: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
             set(gameRef, resetState);
         };
 
         window.gmNextPhase = () => {
             if (state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return alert("Pirmiausia pradėkite žaidimą.");
             
-            if (state.phase === 'pre1') { state.phase = 'cp1'; }
-            else if (state.phase === 'cp1') { state.phase = 'pre2'; state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2; }
-            else if (state.phase === 'pre2') { state.phase = 'cp2'; }
-            else if (state.phase === 'cp2') { state.phase = 'base'; }
-            else if (state.phase === 'base') { state.phase = 'pre3'; state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3; }
-            else if (state.phase === 'pre3') { state.phase = 'cp3'; }
-            else if (state.phase === 'cp3') { state.phase = 'victory'; }
+            if (state.phase === 'pre1') { state.phase = 'cp1'; state.cpEndTime = Date.now() + state.cpRemaining; }
+            else if (state.phase === 'cp1') { state.phase = 'pre2'; state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2) * 1000; state.cpEndTime = 0; }
+            else if (state.phase === 'pre2') { state.phase = 'cp2'; state.cpEndTime = Date.now() + state.cpRemaining; }
+            else if (state.phase === 'cp2') { state.phase = 'base'; state.cpEndTime = 0; }
+            else if (state.phase === 'base') { state.phase = 'pre3'; state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3) * 1000; state.cpEndTime = 0; }
+            else if (state.phase === 'pre3') { state.phase = 'cp3'; state.cpEndTime = Date.now() + state.cpRemaining; }
+            else if (state.phase === 'cp3') { state.phase = 'victory'; state.cpEndTime = 0; }
             
             pushState();
         }
 
         window.resetApp = () => {
             if (role === 'attacker') {
-                const resetState = { phase: 'menu', globalTime: TIMERS.global, cpTime: 0, paused: false, mode: 'normal', team: 'red' };
+                const resetState = { phase: 'menu', globalEndTime: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
                 set(gameRef, resetState).then(() => location.reload());
             } else {
                 location.reload();
@@ -349,54 +363,68 @@
 
         const togglePause = () => {
             if (role !== 'attacker' && role !== 'gm') return;
-            state.paused = !state.paused;
+            
+            if (!state.paused) {
+                // Sustabdom
+                if (state.phase.startsWith('cp')) {
+                    state.cpRemaining = Math.max(0, state.cpEndTime - Date.now());
+                }
+                state.paused = true;
+            } else {
+                // Atleidžiam
+                if (state.phase.startsWith('cp')) {
+                    state.cpEndTime = Date.now() + state.cpRemaining;
+                }
+                state.paused = false;
+            }
             pushState();
         };
         document.querySelectorAll('.btn-pause-toggle').forEach(btn => btn.addEventListener('click', togglePause));
 
-        function startMasterTick() {
-            if (masterTickInterval) clearInterval(masterTickInterval);
+        // TIKRINIMAS IR ATNAUJINIMAS KAS SEKUNDĘ (Nesiunčiant duomenų be reikalo)
+        function startClockTick() {
+            if (clockTickInterval) clearInterval(clockTickInterval);
             
-            masterTickInterval = setInterval(() => {
-                if (state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return;
+            clockTickInterval = setInterval(() => {
+                if (state.phase === 'menu') return;
 
-                state.globalTime--;
-                
-                if (state.globalTime <= 0) {
-                    state.globalTime = 0;
-                    state.phase = 'gameover';
-                    pushState();
-                    clearInterval(masterTickInterval);
-                    return;
-                }
+                // VISIEMS ROLĖMS vizualiai atnaujinamas ekranas
+                updateUI();
 
-                if (!state.paused && state.phase.startsWith('cp')) {
-                    state.cpTime -= 1;
-                    if (state.cpTime <= 0) {
-                        state.cpTime = 0;
-                        handleCaptureComplete();
+                // Tik Atakuojantis arba ŽM priima sprendimus ir siunčia juos į DB
+                if (role === 'attacker' || role === 'gm') {
+                    if (state.phase === 'victory' || state.phase === 'gameover') return;
+
+                    let now = Date.now();
+                    let phaseChanged = false;
+
+                    // 1. Ar pasibaigė globalus laikas?
+                    if (state.globalEndTime > 0 && now >= state.globalEndTime) {
+                        state.phase = 'gameover';
+                        phaseChanged = true;
                     }
-                }
-                
-                pushState();
-            }, 1000);
-        }
+                    // 2. Ar pasibaigė vietinis laikas?
+                    else if (!state.paused && state.phase.startsWith('cp') && state.cpEndTime > 0 && now >= state.cpEndTime) {
+                        if (state.phase === 'cp1') {
+                            state.phase = 'pre2';
+                            state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2) * 1000;
+                            state.cpEndTime = 0;
+                        } else if (state.phase === 'cp2') {
+                            state.phase = 'base';
+                        } else if (state.phase === 'cp3') {
+                            state.phase = 'victory';
+                        }
+                        phaseChanged = true;
+                    }
 
-        function handleCaptureComplete() {
-            if (state.phase === 'cp1') {
-                state.phase = 'pre2';
-                state.cpTime = state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2;
-            } else if (state.phase === 'cp2') {
-                state.phase = 'base';
-            } else if (state.phase === 'cp3') {
-                state.phase = 'victory';
-            }
+                    if (phaseChanged) pushState();
+                }
+            }, 500); // 0.5s užtikrina greitesnę reakciją, neapkraunant Firebase
         }
 
         function pushState() {
             if (role === 'attacker' || role === 'gm') {
                 set(gameRef, state).catch(err => console.error(err));
-                updateUI(); 
             }
         }
 
@@ -404,8 +432,27 @@
             const overlay = document.getElementById('paused-overlay');
             overlay.style.display = (state.paused && role !== 'gm') ? 'flex' : 'none';
 
-            const formattedGlobal = formatTime(state.globalTime);
-            const formattedLocal = formatTime(state.cpTime);
+            // Dinamiškas laiko skaičiavimas iš Datų (Timestamps)
+            let now = Date.now();
+            let currentGlobalSec = 0;
+            let currentLocalSec = 0;
+
+            if (state.globalEndTime > 0) {
+                currentGlobalSec = Math.max(0, Math.floor((state.globalEndTime - now) / 1000));
+            }
+
+            if (state.phase.startsWith('pre') || state.phase === 'base') {
+                currentLocalSec = Math.floor(state.cpRemaining / 1000);
+            } else if (state.phase.startsWith('cp')) {
+                if (state.paused) {
+                    currentLocalSec = Math.floor(state.cpRemaining / 1000);
+                } else if (state.cpEndTime > 0) {
+                    currentLocalSec = Math.max(0, Math.floor((state.cpEndTime - now) / 1000));
+                }
+            }
+
+            const formattedGlobal = formatTime(currentGlobalSec);
+            const formattedLocal = formatTime(currentLocalSec);
             
             document.getElementById('pause-global-time').innerText = formattedGlobal;
             document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
