@@ -39,9 +39,6 @@
         #paused-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; }
         #paused-overlay h1 { color: #e67e22; }
 
-        /* Hidden GM Button */
-        .gm-secret-btn { position: absolute; bottom: 0; right: 0; width: 80px; height: 80px; background: transparent; color: rgba(255,255,255,0.02); font-size: 10px; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; cursor: pointer; z-index: 50; }
-
         /* ŽEMĖLAPIO STILIAI */
         .map-container {
             position: relative;
@@ -88,7 +85,7 @@
         }
         #map-cp1 { top: 33%; left: 50%; }
         #map-cp2 { top: 50%; left: 45%; }
-        #map-cp3 { top: 60%; left: 70%; } /* Pakeista iš 60% į 70% */
+        #map-cp3 { top: 60%; left: 70%; }
 
         .solid-gray { background-color: rgba(127, 140, 141, 0.8); }
         .solid-red { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
@@ -124,11 +121,9 @@
     </div>
 
     <div id="screen-role" class="screen">
-        <h1>Pasirinkite Rolę</h1>
-        <button class="btn" onclick="setRole('attacker')">PUOLĖJAS</button>
-        <button class="btn" onclick="setRole('defender')">GYNĖJAS (Tik stebėti)</button>
-        
-        <div class="gm-secret-btn" onclick="setRole('gm')">ŽM</div>
+        <h1 style="color: #e74c3c;">Prieiga Negalima</h1>
+        <p style="font-size: 1.2rem;">Nenurodyta rolė nuorodoje.</p>
+        <p style="margin-top: 10px; color: #bdc3c7;">Prašome naudoti specialią žaidimo nuorodą, pateiktą organizatorių.</p>
     </div>
 
     <div id="screen-menu" class="screen">
@@ -194,7 +189,6 @@
         <h1>Gynėjo Ekranas</h1>
 
         <div class="map-container" id="defender-map">
-            
             <div class="timers defender-map-timers">
                 <div>
                     <div class="timer-label">Bendras laikas</div>
@@ -296,6 +290,16 @@
             team: 'red'
         };
 
+        // --- NAUJA: Skaitome rolę iš URL parametrų ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRole = urlParams.get('role');
+        if (['attacker', 'defender', 'gm'].includes(urlRole)) {
+            role = urlRole;
+            if (role === 'attacker') {
+                document.getElementById('top-pause-btn').style.display = 'block';
+            }
+        }
+
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
             
@@ -308,13 +312,15 @@
             if (!isInitialized) {
                 isInitialized = true;
                 document.getElementById('screen-loading').classList.remove('active');
+                
+                // Jeigu nuorodoje rolės nėra (arba ji neteisinga), parodome klaidos ekraną
                 if (!role) {
                     document.getElementById('screen-role').classList.add('active');
                 }
             }
 
             if (role) {
-                if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !masterTickInterval) {
+                if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !clockTickInterval) {
                     startClockTick();
                 }
                 if (state.phase === 'menu' && clockTickInterval) {
@@ -333,17 +339,6 @@
                 document.getElementById('loading-sub').innerText = error.message;
             }
         });
-
-        window.setRole = (selectedRole) => {
-            role = selectedRole;
-            if (role === 'attacker') {
-                document.getElementById('top-pause-btn').style.display = 'block';
-            } else {
-                document.getElementById('top-pause-btn').style.display = 'none';
-            }
-            updateUI();
-            if (state.phase !== 'menu' && !clockTickInterval) startClockTick();
-        };
 
         window.selectTeam = (team) => { setupTeam = team; updateSetupSummary(); };
         window.selectMode = (mode) => { setupMode = mode; updateSetupSummary(); };
