@@ -320,7 +320,7 @@
             }
 
             if (role) {
-                if ((role === 'attacker' || role === 'gm') && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !clockTickInterval) {
+                if (state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !clockTickInterval) {
                     startClockTick();
                 }
                 if (state.phase === 'menu' && clockTickInterval) {
