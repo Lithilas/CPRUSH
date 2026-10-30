@@ -2,642 +2,675 @@
 <html lang="lt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Taško Užėmimas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#F4F5F7">
+    <title>Taško užėmimas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap">
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
         :root {
-            --red-team: #e74c3c;
-            --blue-team: #3498db;
-            --bg-dark: #000000;
-            --text-light: #ecf0f1;
-            --btn-bg: #34495e;
-            --accent: #f1c40f;
+            --bg: #F4F5F7; --surface: #FFFFFF; --line: #D9DCE2; --line-strong: #C3C8D1;
+            --ink: #14171C; --muted: #5B6270;
+            --red: #D92D27; --red-ink: #B3211C; --blue: #1F5FD6; --green: #1E7B3C;
+            --tint-red: #FBE9E8; --tint-blue: #E6EEFB; --gray-dot: #9AA1AE;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-light); overflow-x: hidden; user-select: none; }
-        
-        .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; position: relative; }
-        .active { display: flex; }
-        
-        h1 { margin-bottom: 20px; font-size: 2.5rem; }
-        h2 { margin-bottom: 15px; font-size: 1.8rem; color: var(--accent); }
-        
-        .btn { background-color: var(--btn-bg); color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 8px; margin: 10px; cursor: pointer; transition: 0.2s; width: 80%; max-width: 300px; }
-        .btn:active { transform: scale(0.95); }
-        .btn-red { background-color: var(--red-team); }
-        .btn-blue { background-color: var(--blue-team); }
-        .btn-pause { background-color: #e67e22; position: fixed; top: 10px; right: 10px; width: auto; padding: 10px 20px; z-index: 100; display: none; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Barlow', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; padding: 28px 16px 56px; font-size: 16px; line-height: 1.4; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 6px; background: var(--ink); z-index: 5; transition: background-color .4s; }
+        body.team-red::before { background: var(--red); }
+        body.team-blue::before { background: var(--blue); }
 
-        .timers { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; width: 100%; max-width: 400px; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; }
-        .timer-box { font-size: 2rem; font-weight: bold; }
-        .timer-label { font-size: 1rem; color: #bdc3c7; text-transform: uppercase; letter-spacing: 1px; }
-        .global-timer { color: var(--accent); }
+        .hidden { display: none !important; }
+        .wrap { max-width: 520px; margin: 0 auto; }
+        h1 { font: 700 2.4rem/1.1 'Barlow Condensed', sans-serif; margin: 0 0 6px; }
+        h2 { font: 700 1.7rem/1.1 'Barlow Condensed', sans-serif; margin: 0 0 10px; }
+        h3 { font-size: .95rem; font-weight: 600; color: var(--muted); margin: 0 0 6px; }
+        p { margin: 0; }
+        .muted { color: var(--muted); }
+        .small { font-size: .85rem; }
+        .eyebrow { font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+        :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
-        .status-indicator { font-size: 1.5rem; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; width: 100%; max-width: 400px; }
-        
-        /* Pause Overlay */
-        #paused-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        #paused-overlay h1 { color: #e67e22; }
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
+        .time { font: 700 clamp(2rem, 9.5vw, 3.2rem)/1.05 'Barlow Condensed', sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .time.accent-blue { color: var(--blue); }
+        .strip { display: flex; gap: 12px; margin-bottom: 14px; }
+        .strip > .card { flex: 1; min-width: 0; margin-bottom: 0; }
+        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
+        .dot.red { background: var(--red); } .dot.blue { background: var(--blue); } .dot.gray { background: var(--gray-dot); }
 
-        /* ŽEMĖLAPIO STILIAI */
-        .map-container {
-            position: relative;
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto 20px auto;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid rgba(255,255,255,0.1);
-        }
-        .map-container img {
-            width: 100%;
-            display: block;
-        }
-        
-        /* Gynėjų laikmačio perdanga ant žemėlapio */
-        .defender-map-timers {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            display: flex;
-            flex-direction: row;
-            justify-content: space-around;
-            background: rgba(0, 0, 0, 0.7); /* 30% skaidrumas */
-            padding: 10px;
-            z-index: 20;
-            margin: 0;
-            border-radius: 0;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
-        }
-        .defender-map-timers .timer-box { font-size: 1.5rem; }
-        .defender-map-timers .timer-label { font-size: 0.8rem; }
+        .btn { min-height: 56px; padding: 12px 18px; font: 600 1.05rem 'Barlow', sans-serif; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; width: 100%; margin-top: 10px; transition: transform .1s; }
+        .btn:active { transform: scale(.985); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+        .btn-danger { border-color: var(--red); color: var(--red-ink); }
+        .btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+        .btn-sm { min-height: 44px; padding: 8px 14px; width: auto; margin-top: 0; }
+        .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-row .btn { margin-top: 10px; }
 
-        .map-point {
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            border: 2px solid white;
-            transition: background-color 0.3s, box-shadow 0.3s;
-            z-index: 10;
-        }
-        #map-cp1 { top: 33%; left: 50%; }
-        #map-cp2 { top: 50%; left: 45%; }
-        #map-cp3 { top: 60%; left: 70%; }
+        /* Pasirinkimo mygtukai */
+        .choice { display: flex; align-items: center; justify-content: center; min-height: 56px; margin-top: 0; border-width: 1px; }
+        .choice.sel { border: 2px solid var(--ink); background: var(--bg); }
+        .choice.team-r.sel { border-color: var(--red); background: var(--tint-red); }
+        .choice.team-b.sel { border-color: var(--blue); background: var(--tint-blue); }
+        .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .summary { font-weight: 600; color: var(--muted); margin: 4px 0 2px; }
 
-        .solid-gray { background-color: rgba(127, 140, 141, 0.8); }
-        .solid-red { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
-        .solid-blue { background-color: var(--blue-team); box-shadow: 0 0 15px var(--blue-team); }
+        .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 12px; }
+        .bar > i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 99px; transition: width .5s linear; }
 
-        @keyframes blinkRed {
-            0%, 100% { background-color: var(--red-team); box-shadow: 0 0 15px var(--red-team); }
-            50% { background-color: rgba(231, 76, 60, 0.2); box-shadow: none; }
-        }
-        @keyframes blinkBlue {
-            0%, 100% { background-color: var(--blue-team); box-shadow: 0 0 15px var(--blue-team); }
-            50% { background-color: rgba(52, 152, 219, 0.2); box-shadow: none; }
-        }
-        .blinking-red { animation: blinkRed 1s infinite; }
-        .blinking-blue { animation: blinkBlue 1s infinite; }
+        .status { border-radius: 14px; background: var(--surface); border: 1px solid var(--line); padding: 14px 18px; margin-bottom: 14px; font-weight: 600; font-size: 1.1rem; }
+        .status.tint-red { background: var(--tint-red); border-color: var(--red); }
+        .status.tint-blue { background: var(--tint-blue); border-color: var(--blue); }
+        .status.paused { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+        /* Defender map */
+        .map { position: relative; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); margin-bottom: 14px; }
+        .map img { width: 100%; display: block; min-height: 120px; }
+        .pt { position: absolute; width: 24px; height: 24px; border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(20,23,28,.4); background: var(--gray-dot); }
+        .pt.red { background: var(--red); } .pt.blue { background: var(--blue); }
+        .pt.blink { animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+        #pt1 { top: 33%; left: 50%; } #pt2 { top: 50%; left: 45%; } #pt3 { top: 60%; left: 70%; }
+        .legend { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); font-weight: 600; }
+        .legend:first-of-type { border-top: 0; padding-top: 0; }
+        .legend span:last-child { color: var(--muted); }
+        .map-fallback { padding: 28px 16px; text-align: center; color: var(--muted); }
+
+        .end-title { font: 700 clamp(3rem, 16vw, 4.4rem)/1 'Barlow Condensed', sans-serif; margin: 6px 0 10px; }
+        .ok { color: var(--green); } .bad { color: var(--red-ink); }
+
+        /* Pauzės užsklanda ir mygtukas */
+        #pause-fab { position: absolute; top: 16px; right: 16px; z-index: 20; min-height: 36px; padding: 4px 14px; background: var(--surface); }
+        #pause-overlay { position: fixed; inset: 0; background: rgba(20,23,28,.72); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .sheet { background: var(--surface); border-radius: 20px; padding: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 24px 60px rgba(20,23,28,.3); }
+        #conn-banner { position: fixed; top: 6px; left: 0; right: 0; z-index: 150; background: var(--red-ink); color: #fff; text-align: center; padding: 6px 12px; font-weight: 600; font-size: .9rem; }
+
+        /* Langai */
+        .modal { position: fixed; inset: 0; background: rgba(20,23,28,.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+        .modal-box { background: var(--surface); padding: 24px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 24px 60px rgba(20,23,28,.3); }
+        .modal-box h3 { font: 700 1.7rem 'Barlow Condensed', sans-serif; color: var(--ink); margin: 0 0 8px; }
+        .modal-box input[type="text"] { width: 100%; margin: 10px 0 4px; padding: 10px 12px; font: 600 1.15rem 'Barlow', sans-serif; border: 1px solid var(--line-strong); border-radius: 12px; }
+        .modal-row { display: flex; gap: 10px; margin-top: 14px; }
+        .modal-row .btn { margin: 0; }
+
+        #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(120px); background: var(--ink); color: #fff; padding: 14px 20px; border-radius: 12px; z-index: 10000; max-width: 90%; text-align: center; opacity: 0; transition: .3s; pointer-events: none; }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast.err { background: var(--red-ink); }
+
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
     </style>
 </head>
 <body>
+<div id="conn-banner" class="hidden" role="status">Nėra ryšio su serveriu – laikas gali būti netikslus</div>
 
-    <div id="paused-overlay">
-        <h1>ŽAIDIMAS SUSTABDYTAS</h1>
-        <p style="font-size: 1.2rem;">Užėmimo laikas sustabdytas.</p>
-        <p style="color: var(--accent); font-weight: bold; margin-top: 20px;">BENDRO ŽAIDIMO LAIKAS VIS DAR EINA:</p>
-        <div class="timer-box global-timer" id="pause-global-time" style="margin-bottom: 30px; font-size: 3rem;">105:00</div>
-        <button class="btn btn-pause-toggle" style="background-color: #27ae60;" id="resume-btn">Tęsti Žaidimą</button>
-    </div>
+<div class="wrap">
 
-    <button class="btn btn-pause btn-pause-toggle" id="top-pause-btn">Pauzė</button>
+    <!-- Jungiamasi -->
+    <section id="s-loading">
+        <h1 id="loading-title">Jungiamasi...</h1>
+        <p id="loading-sub" class="muted">Sinchronizuojama su serveriu</p>
+    </section>
 
-    <div id="screen-loading" class="screen active">
-        <h1 id="loading-header">Jungiamasi...</h1>
-        <p id="loading-sub">Sinchronizuojama su Firebase serveriu</p>
-    </div>
+    <!-- Nėra rolės -->
+    <section id="s-norole" class="hidden">
+        <h1 class="bad">Prieiga negalima</h1>
+        <p>Nuorodoje nenurodyta rolė.</p>
+        <p class="muted" style="margin-top:8px;">Naudokite specialią žaidimo nuorodą, kurią pateikė organizatoriai.</p>
+    </section>
 
-    <div id="screen-role" class="screen">
-        <h1 style="color: #e74c3c;">Prieiga Negalima</h1>
-        <p style="font-size: 1.2rem;">Nenurodyta rolė nuorodoje.</p>
-        <p style="margin-top: 10px; color: #bdc3c7;">Prašome naudoti specialią žaidimo nuorodą, pateiktą organizatorių.</p>
-    </div>
-
-    <div id="screen-menu" class="screen">
-        <h1>Žaidimo Nustatymai</h1>
-        <div style="margin-bottom: 20px;">
-            <h3>Pasirinkite Komandą</h3>
-            <button class="btn btn-red" onclick="selectTeam('red')">RAUDONA KOMANDA</button>
-            <button class="btn btn-blue" onclick="selectTeam('blue')">MĖLYNA KOMANDA</button>
+    <!-- Puolėjai: meniu -->
+    <section id="s-menu" class="hidden">
+        <div class="eyebrow">Puolėjai</div>
+        <h1>Žaidimo nustatymai</h1>
+        <h3 style="margin-top:18px;">Jūsų komanda</h3>
+        <div class="choices">
+            <button class="btn choice team-r" data-team="red" onclick="pickTeam('red')"><i class="dot red"></i>Raudona</button>
+            <button class="btn choice team-b" data-team="blue" onclick="pickTeam('blue')"><i class="dot blue"></i>Mėlyna</button>
         </div>
-        <div style="margin-bottom: 20px;">
-            <h3>Pasirinkite Režimą</h3>
-            <button class="btn" onclick="selectMode('normal')">ĮPRASTAS REŽIMAS</button>
-            <button class="btn" onclick="selectMode('demo')">DEMO REŽIMAS</button>
+        <h3>Režimas</h3>
+        <div class="choices">
+            <button class="btn choice" data-mode="normal" onclick="pickMode('normal')">Įprastas</button>
+            <button class="btn choice" data-mode="demo" onclick="pickMode('demo')">Demo</button>
         </div>
-        <h2 id="setup-summary">Komanda: Nėra | Režimas: Nėra</h2>
-        <button class="btn" style="background-color: #27ae60;" onclick="startGame()">PRADĖTI ŽAIDIMĄ</button>
-    </div>
+        <p id="menu-summary" class="summary"></p>
+        <button id="menu-start" class="btn btn-primary" onclick="attackerStart()">Pradėti žaidimą</button>
+    </section>
 
-    <div id="screen-travel" class="screen">
+    <!-- Puolėjai: kelionė -->
+    <section id="s-travel" class="hidden">
+        <div class="eyebrow">Puolėjai</div>
         <h1 id="travel-title">Keliaujama...</h1>
-        <div class="timers">
-            <div class="timer-label">Liko bendro laiko</div>
-            <div class="timer-box global-timer" id="travel-global-time">105:00</div>
+        <div class="card" style="margin-top:14px;">
+            <h3>Liko bendro laiko</h3>
+            <div class="time" id="travel-global">--:--</div>
         </div>
-        <p style="margin-bottom: 30px;">Fiziškai judėkite prie kito kontrolės taško.</p>
-        <button class="btn" style="background-color: #27ae60;" onclick="arriveAtPoint()">MES ATVYKOME</button>
-    </div>
+        <p class="muted">Fiziškai judėkite prie kito kontrolės taško. Kai atvyksite, paspauskite mygtuką – užėmimo laikmatis prasidės iš karto.</p>
+        <button class="btn btn-primary" onclick="attackerArrive()">Mes atvykome</button>
+    </section>
 
-    <div id="screen-capture" class="screen">
+    <!-- Puolėjai: užėmimas -->
+    <section id="s-capture" class="hidden">
+        <div class="eyebrow">Puolėjai</div>
         <h1 id="capture-title">Užimamas KT1</h1>
-        <div class="timers">
-            <div>
-                <div class="timer-label">Liko bendro laiko</div>
-                <div class="timer-box global-timer" id="capture-global-time">105:00</div>
+        <div class="strip" style="margin-top:14px;">
+            <div class="card"><h3>Bendras laikas</h3><div class="time" id="capture-global">--:--</div></div>
+            <div class="card"><h3>Užėmimas</h3><div class="time accent-blue" id="capture-local">--:--</div></div>
+        </div>
+        <div class="bar" style="margin:-2px 0 14px;"><i id="capture-bar"></i></div>
+        <p class="muted">Ginkite šį tašką, kol užėmimo laikas pasieks nulį.</p>
+    </section>
+
+    <!-- Puolėjai: bazė -->
+    <section id="s-base" class="hidden">
+        <div class="eyebrow">Puolėjai</div>
+        <h1 class="ok">Bazė užimta</h1>
+        <div class="card" style="margin-top:14px;">
+            <h3>Liko bendro laiko</h3>
+            <div class="time" id="base-global">--:--</div>
+        </div>
+        <p><b>Jūsų nauja bazė yra KT2.</b></p>
+        <p class="muted" style="margin-top:4px;">Pasiruoškite keliauti į paskutinį kontrolės tašką.</p>
+        <button class="btn btn-primary" onclick="attackerContinue()">Tęsti</button>
+    </section>
+
+    <!-- Pabaiga (puolėjai) -->
+    <section id="s-end" class="hidden">
+        <div class="eyebrow">Puolėjai</div>
+        <div class="end-title" id="end-title">Pergalė</div>
+        <p id="end-sub"></p>
+        <p id="end-detail" class="muted" style="margin-top:6px;"></p>
+        <button class="btn btn-primary" onclick="attackerBackToMenu()" style="margin-top:20px;">Atgal į meniu</button>
+    </section>
+
+    <!-- Gynėjai -->
+    <section id="s-defender" class="hidden">
+        <div class="eyebrow">Gynėjai</div>
+        <h1>Gynėjo ekranas</h1>
+        <div class="strip" style="margin-top:14px;">
+            <div class="card"><h3>Bendras laikas</h3><div class="time" id="def-global">--:--</div></div>
+            <div class="card" id="def-local-card"><h3 id="def-local-label">Užėmimas</h3><div class="time accent-blue" id="def-local">--:--</div></div>
+        </div>
+        <div class="status" id="def-status">Laukiama pradžios</div>
+        <div class="map">
+            <img id="map-img" src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Žemėlapis" onerror="mapFail()">
+            <div id="map-fallback" class="map-fallback hidden">Žemėlapio nepavyko įkelti</div>
+            <div class="pt" id="pt1"></div><div class="pt" id="pt2"></div><div class="pt" id="pt3"></div>
+        </div>
+        <div class="card">
+            <div class="legend"><span><i class="dot gray" id="lg-dot1"></i>KT1</span><span id="lg-txt1">Laukia</span></div>
+            <div class="legend"><span><i class="dot gray" id="lg-dot2"></i>KT2</span><span id="lg-txt2">Laukia</span></div>
+            <div class="legend"><span><i class="dot gray" id="lg-dot3"></i>KT3</span><span id="lg-txt3">Laukia</span></div>
+        </div>
+    </section>
+
+    <!-- Žaidimo meistras -->
+    <section id="s-gm" class="hidden">
+        <div class="eyebrow">Žaidimo meistras</div>
+        <h1>Konsolė</h1>
+        <div class="status" id="gm-status" style="margin-top:14px;">Fazė: meniu</div>
+        <div class="strip">
+            <div class="card"><h3>Bendras laikas</h3><div class="time" id="gm-global">--:--</div></div>
+            <div class="card"><h3>Vietinis laikas</h3><div class="time accent-blue" id="gm-local">--:--</div></div>
+        </div>
+        <div class="card" id="gm-setup">
+            <h3>Nustatymai (prieš pradedant)</h3>
+            <div class="choices" style="margin-bottom:10px;">
+                <button class="btn choice team-r" data-team="red" onclick="pickTeam('red')"><i class="dot red"></i>Raudona</button>
+                <button class="btn choice team-b" data-team="blue" onclick="pickTeam('blue')"><i class="dot blue"></i>Mėlyna</button>
             </div>
-            <div>
-                <div class="timer-label">Užėmimo progresas</div>
-                <div class="timer-box" id="capture-local-time">20:00</div>
+            <div class="choices" style="margin-bottom:6px;">
+                <button class="btn choice" data-mode="normal" onclick="pickMode('normal')">Įprastas</button>
+                <button class="btn choice" data-mode="demo" onclick="pickMode('demo')">Demo</button>
             </div>
+            <p id="gm-summary" class="summary"></p>
         </div>
-        
-        <p style="color: #bdc3c7; margin-top: 10px;">Ginkite šį tašką, kol užėmimo laikas pasieks nulį.</p>
-    </div>
-
-    <div id="screen-base" class="screen">
-        <h1>BAZĖ UŽIMTA!</h1>
-        <div class="timers">
-            <div class="timer-label">Liko bendro laiko</div>
-            <div class="timer-box global-timer" id="base-global-time">105:00</div>
+        <button id="gm-start" class="btn btn-primary" onclick="gmStart()">Pradėti žaidimą</button>
+        <div class="btn-row">
+            <button id="gm-pause" class="btn" onclick="togglePause()">Pauzė</button>
+            <button id="gm-next" class="btn" onclick="gmNext()">Kita fazė</button>
         </div>
-        <h2 style="color: #2ecc71; margin-top: 10px;">Jūsų nauja bazė yra KT1.</h2>
-        <p style="margin-bottom: 20px;">Pasiruoškite keliauti į paskutinį kontrolės tašką.</p>
-        <button class="btn" style="background-color: #2980b9;" onclick="continueToBaseTravel()">TĘSTI</button>
+        <button id="gm-undo" class="btn hidden" onclick="gmUndoArrival()">Atšaukti atvykimą</button>
+        <button class="btn btn-danger" onclick="gmReset()">Perkrauti žaidimą</button>
+    </section>
+</div>
+
+<!-- Pauzė -->
+<button id="pause-fab" class="btn btn-sm hidden" onclick="togglePause()">Pauzė</button>
+<div id="pause-overlay" class="hidden" role="dialog" aria-modal="true">
+    <div class="sheet">
+        <h2>Žaidimas sustabdytas</h2>
+        <p class="muted">Užėmimo laikas sustabdytas.</p>
+        <p style="margin-top:14px;"><b>Bendras žaidimo laikas vis dar eina</b></p>
+        <div class="time" id="pause-global" style="margin:6px 0 4px;">--:--</div>
+        <button id="pause-resume" class="btn btn-primary" onclick="togglePause()">Tęsti žaidimą</button>
+        <p id="pause-wait" class="muted small hidden" style="margin-top:12px;">Laukiama, kol puolėjai tęs.</p>
     </div>
+</div>
 
-    <div id="screen-end" class="screen">
-        <h1 id="end-title" style="font-size: 4rem;">PERGALĖ</h1>
-        <p id="end-subtitle">Visi taškai laiku užimti.</p>
-        <button class="btn" onclick="resetApp()">Atgal į Meniu</button>
-    </div>
-
-    <div id="screen-defender" class="screen">
-        <h1>Gynėjo Ekranas</h1>
-
-        <div class="map-container" id="defender-map">
-            <div class="timers defender-map-timers">
-                <div>
-                    <div class="timer-label">Bendras laikas</div>
-                    <div class="timer-box global-timer" id="def-global-time">105:00</div>
-                </div>
-                <div id="def-local-container" style="display: none;">
-                    <div class="timer-label" id="def-local-label">Užėmimo laikas</div>
-                    <div class="timer-box" id="def-local-time">--:--</div>
-                </div>
-            </div>
-
-            <img src="https://i.ibb.co/C5yyFJzK/IMG-6223.jpg" alt="Žemėlapis">
-            <div class="map-point" id="map-cp1"></div>
-            <div class="map-point" id="map-cp2"></div>
-            <div class="map-point" id="map-cp3"></div>
+<!-- Patvirtinimo langas (gali reikalauti įrašyti žodį) -->
+<div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cm-title">
+    <div class="modal-box">
+        <h3 id="cm-title"></h3>
+        <p id="cm-text"></p>
+        <div id="cm-typebox" class="hidden">
+            <p id="cm-hint" class="muted small" style="margin-top:12px;"></p>
+            <input type="text" id="cm-input" autocomplete="off" autocapitalize="characters" aria-label="Patvirtinimo žodis">
         </div>
-
-        <div class="status-indicator" id="def-status" style="margin-top: 0;">
-            Dabartinė fazė: Laukiama pradžios
+        <div class="modal-row">
+            <button class="btn" onclick="closeConfirm()">Atšaukti</button>
+            <button id="cm-ok" class="btn btn-primary" onclick="confirmOk()">Taip</button>
         </div>
     </div>
+</div>
 
-    <div id="screen-gm" class="screen">
-        <h1 style="color: #9b59b6;">Žaidimo Meistro Konsolė</h1>
-        <div class="status-indicator" id="gm-status" style="font-weight: bold;">
-            Fazė: Meniu
-        </div>
-        
-        <div class="timers" style="flex-direction: row; justify-content: center; max-width: 500px;">
-            <div style="margin: 0 15px;">
-                <div class="timer-label">Bendras Laikas</div>
-                <div class="timer-box global-timer" id="gm-global-time">105:00</div>
-            </div>
-            <div style="margin: 0 15px;">
-                <div class="timer-label">Vietinis Laikas</div>
-                <div class="timer-box" id="gm-local-time" style="color: #3498db;">--:--</div>
-            </div>
-        </div>
+<div id="toast" role="status" aria-live="polite"></div>
+<p id="sound-hint" class="muted small hidden" style="text-align:center;margin-top:8px;">Palieskite ekraną vieną kartą, kad įsijungtų garsas.</p>
 
-        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; width: 100%; max-width: 400px; margin-bottom: 20px;">
-            <h3 style="margin-bottom: 10px;">Nustatymai (Prieš Pradedant)</h3>
-            <button class="btn btn-red" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectTeam('red')">RAUDONA</button>
-            <button class="btn btn-blue" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectTeam('blue')">MĖLYNA</button><br>
-            <button class="btn" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectMode('normal')">ĮPRASTAS</button>
-            <button class="btn" style="padding: 10px 15px; font-size: 1rem; width: auto;" onclick="selectMode('demo')">DEMO</button>
-            <div id="gm-setup-summary" style="margin-top:10px; font-weight: bold; color: #f1c40f;">Nustatymai: Nėra / Nėra</div>
-        </div>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
+        authDomain: "cprush-2249a.firebaseapp.com",
+        databaseURL: "https://cprush-2249a-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "cprush-2249a",
+        storageBucket: "cprush-2249a.firebasestorage.app",
+        messagingSenderId: "40928992118",
+        appId: "1:40928992118:web:86c09b9eab9d9539c67857"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const gameRef = db.ref('game');
 
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 500px;">
-            <button class="btn" style="background-color: #27ae60; width: 45%; margin: 5px;" onclick="gmStartGame()">PRIVERSTINAI PRADĖTI</button>
-            <button class="btn btn-pause-toggle" style="background-color: #e67e22; width: 45%; margin: 5px; display: block;">ĮJUNGTI / IŠJUNGTI PAUZĘ</button>
-            <button class="btn" style="background-color: #8e44ad; width: 45%; margin: 5px;" onclick="gmNextPhase()">KITA FAZĖ</button>
-            <button class="btn" style="background-color: #c0392b; width: 45%; margin: 5px;" onclick="gmResetApp()">PERKRAUTI ŽAIDIMĄ</button>
-        </div>
-    </div>
+    /* ======================================================================
+       game = { phase: menu|pre1|cp1|pre2|cp2|base|pre3|cp3|victory|gameover,
+                globalEndTime, cpEndTime (serverio laikas, ms), cpRemaining, globalRemaining,
+                paused, mode: normal|demo, team: red|blue, captured (0-3) }
+       Visi pokyčiai – duomenų bazės transakcijos, o laikas – serverio laikas,
+       todėl telefonų laikrodžių skirtumai ir vienu metu paspausti mygtukai nebeardo žaidimo.
+       ====================================================================== */
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    const TIMERS = {
+        global: 105 * 60,
+        normal: { cp1: 20 * 60, cp2: 18 * 60, cp3: 15 * 60 },
+        demo:   { cp1: 3 * 60,  cp2: 2 * 60,  cp3: 1 * 60 }
+    };
+    const DEFAULT = { phase: 'menu', globalEndTime: 0, globalRemaining: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red', captured: 0 };
+    const cpMs = (mode, n) => TIMERS[mode === 'demo' ? 'demo' : 'normal']['cp' + n] * 1000;
+    const isTerminal = p => p === 'victory' || p === 'gameover';
+    const isCp = p => /^cp\d$/.test(p);
+    const isPre = p => /^pre\d$/.test(p);
+    const teamName = t => t === 'blue' ? 'Mėlyna' : 'Raudona';
+    const $ = id => document.getElementById(id);
 
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAGhi4XMLeVGnRq3dhhwbJK9NOCtIPJ9vs",
-            authDomain: "cprush-2249a.firebaseapp.com",
-            databaseURL: "https://cprush-2249a-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "cprush-2249a",
-            storageBucket: "cprush-2249a.firebasestorage.app",
-            messagingSenderId: "40928992118",
-            appId: "1:40928992118:web:86c09b9eab9d9539c67857",
-            measurementId: "G-7N5M3W4ZYB"
-        };
+    /* ---------- Rolė iš nuorodos ---------- */
+    const urlRole = new URLSearchParams(location.search).get('role');
+    const role = ['attacker', 'defender', 'gm'].includes(urlRole) ? urlRole : null;
 
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const db = getDatabase(app);
-        const gameRef = ref(db, 'game');
+    let state = Object.assign({}, DEFAULT);
+    let loaded = false, prevPhase = null, prevPaused = false;
+    let setup = { team: null, mode: null };
 
-        const TIMERS = {
-            global: 105 * 60,
-            normal: { cp1: 20 * 60, cp2: 18 * 60, cp3: 15 * 60 },
-            demo: { cp1: 3 * 60, cp2: 2 * 60, cp3: 1 * 60 }
-        };
+    /* ---------- Serverio laikas ---------- */
+    let serverOffset = 0;
+    const now = () => Date.now() + serverOffset;
+    db.ref('.info/serverTimeOffset').on('value', s => { serverOffset = s.val() || 0; });
+    db.ref('.info/connected').on('value', s => $('conn-banner').classList.toggle('hidden', s.val() !== false || !loaded));
 
-        let role = null; 
-        let setupTeam = null;
-        let setupMode = null;
-        let clockTickInterval = null;
-        let isInitialized = false;
-
-        let state = {
-            phase: 'menu', 
-            globalEndTime: 0,
-            globalRemaining: 0, 
-            cpEndTime: 0,
-            cpRemaining: 0, 
-            paused: false,
-            mode: 'normal',
-            team: 'red'
-        };
-
-        // --- NAUJA: Skaitome rolę iš URL parametrų ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlRole = urlParams.get('role');
-        if (['attacker', 'defender', 'gm'].includes(urlRole)) {
-            role = urlRole;
-            if (role === 'attacker') {
-                document.getElementById('top-pause-btn').style.display = 'block';
-            }
+    /* ---------- Būsenos keitimo funkcijos (grynosios) ---------- */
+    function completePoint(s, at) {
+        const n = +s.phase.slice(2);
+        s.captured = n;
+        s.cpEndTime = 0;
+        if (n === 1) { s.phase = 'pre2'; s.cpRemaining = cpMs(s.mode, 2); }
+        else if (n === 2) { s.phase = 'base'; s.cpRemaining = 0; }
+        else { s.phase = 'victory'; s.globalRemaining = Math.max(0, s.globalEndTime - at); }
+    }
+    function arrive(s, t) {
+        const n = s.phase.slice(3);
+        s.phase = 'cp' + n;
+        s.cpEndTime = s.paused ? 0 : t + s.cpRemaining;
+    }
+    // Automatinis perėjimas, kai baigiasi laikas. Taško užėmimas, įvykęs iki žaidimo pabaigos, visada laimi.
+    function advance(s, t) {
+        if (s.phase === 'menu' || isTerminal(s.phase)) return false;
+        if (isCp(s.phase) && !s.paused && s.cpEndTime > 0 && s.cpEndTime <= t && (!s.globalEndTime || s.cpEndTime <= s.globalEndTime)) {
+            completePoint(s, s.cpEndTime); return true;
         }
+        if (s.globalEndTime > 0 && t >= s.globalEndTime) { s.phase = 'gameover'; s.cpEndTime = 0; return true; }
+        return false;
+    }
 
-        onValue(gameRef, (snapshot) => {
-            const data = snapshot.val();
-            
-            if (data) {
-                state = data;
+    /* ---------- Rašymas: transakcija (fn grąžina false = nieko nekeisti) ---------- */
+    function mutate(fn, onFail) {
+        gameRef.transaction(cur => {
+            if (cur === null) return cur;
+            const s = Object.assign({}, DEFAULT, cur);
+            return fn(s, now()) === false ? undefined : s;
+        }, (err, committed) => {
+            if (err) toast('Nepavyko išsaugoti: ' + err.message, true);
+            else if (!committed && onFail) onFail();
+        }, false);
+    }
+
+    /* ---------- Sinchronizacija ---------- */
+    gameRef.on('value', snap => {
+        const data = snap.val();
+        if (data === null) {
+            if (role) gameRef.transaction(c => c === null ? DEFAULT : undefined);
+            return;
+        }
+        state = Object.assign({}, DEFAULT, data);
+        if (!loaded) {
+            loaded = true;
+            prevPhase = state.phase; prevPaused = state.paused;
+        } else {
+            announce(state);
+        }
+        updateUI();
+    }, err => {
+        $('loading-title').textContent = 'Ryšio klaida';
+        $('loading-title').className = 'bad';
+        $('loading-sub').textContent = /permission/i.test(err.message) ? 'Prieiga uždrausta. Patikrinkite Firebase taisykles.' : err.message;
+    });
+
+    /* ---------- Veiksmai ---------- */
+    function pickTeam(t) { setup.team = t; updateSetup(); }
+    function pickMode(m) { setup.mode = m; updateSetup(); }
+
+    function startGame(force) {
+        if (!setup.team || !setup.mode) { toast('Pirmiausia pasirinkite komandą ir režimą', true); return; }
+        const { team, mode } = setup;
+        mutate((s, t) => {
+            if (!force && s.phase !== 'menu') return false;
+            Object.assign(s, { phase: 'pre1', globalEndTime: t + TIMERS.global * 1000, globalRemaining: 0, cpEndTime: 0,
+                cpRemaining: cpMs(mode, 1), paused: false, mode, team, captured: 0 });
+        }, () => toast('Žaidimas jau pradėtas', true));
+    }
+    function attackerStart() { startGame(false); }
+    function gmStart() {
+        if (!setup.team || !setup.mode) { toast('Pirmiausia pasirinkite komandą ir režimą', true); return; }
+        if (state.phase === 'menu') return startGame(false);
+        askConfirm({ title: 'Pradėti iš naujo?', text: 'Žaidimas jau vyksta. Dabartinė eiga bus prarasta.', okText: 'Taip, pradėti iš naujo', danger: true, onOk: () => startGame(true) });
+    }
+    function attackerArrive() {
+        if (state.paused) { toast('Žaidimas sustabdytas', true); return; }
+        const n = state.phase.slice(3);
+        askConfirm({ title: `Atvykote į KT${n}?`, text: 'Užėmimo laikmatis prasidės iš karto ir jo nebus galima atšaukti.', okText: 'Taip, atvykome',
+            onOk: () => mutate((s, t) => isPre(s.phase) && !s.paused ? arrive(s, t) : false) });
+    }
+    function attackerContinue() {
+        mutate(s => {
+            if (s.phase !== 'base') return false;
+            s.phase = 'pre3'; s.cpRemaining = cpMs(s.mode, 3); s.cpEndTime = 0;
+        });
+    }
+    function attackerBackToMenu() {
+        mutate(s => isTerminal(s.phase) ? Object.assign(s, DEFAULT) : false);
+        setup = { team: null, mode: null }; updateSetup();
+    }
+    function togglePause() {
+        mutate((s, t) => {
+            if (s.phase === 'menu' || isTerminal(s.phase)) return false;
+            if (!s.paused) {
+                if (isCp(s.phase)) s.cpRemaining = Math.max(0, s.cpEndTime - t);
+                s.paused = true;
             } else {
-                set(gameRef, state).catch(err => console.error("Įrašymo klaida:", err));
-            }
-
-            if (!isInitialized) {
-                isInitialized = true;
-                document.getElementById('screen-loading').classList.remove('active');
-                
-                // Jeigu nuorodoje rolės nėra (arba ji neteisinga), parodome klaidos ekraną
-                if (!role) {
-                    document.getElementById('screen-role').classList.add('active');
-                }
-            }
-
-            if (role) {
-                if (state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover' && !clockTickInterval) {
-                    startClockTick();
-                }
-                if (state.phase === 'menu' && clockTickInterval) {
-                    clearInterval(clockTickInterval);
-                    clockTickInterval = null;
-                }
-                updateUI();
-            }
-        }, (error) => {
-            document.getElementById('loading-header').innerText = "Firebase Klaida!";
-            document.getElementById('loading-header').style.color = "#e74c3c";
-            
-            if (error.message.includes("Permission denied")) {
-                document.getElementById('loading-sub').innerHTML = `<b>Prieiga uždrausta!</b><br>Patikrinkite Firebase taisykles.`;
-            } else {
-                document.getElementById('loading-sub').innerText = error.message;
+                if (isCp(s.phase)) s.cpEndTime = t + s.cpRemaining;
+                s.paused = false;
             }
         });
+    }
+    function gmNext() {
+        if (state.phase === 'menu' || isTerminal(state.phase)) { toast('Pirmiausia pradėkite žaidimą', true); return; }
+        askConfirm({ title: 'Pereiti į kitą fazę?', text: 'Dabartinė fazė bus užbaigta anksčiau laiko.', okText: 'Taip, pereiti',
+            onOk: () => mutate((s, t) => {
+                if (isPre(s.phase)) arrive(s, t);
+                else if (isCp(s.phase)) completePoint(s, t);
+                else if (s.phase === 'base') { s.phase = 'pre3'; s.cpRemaining = cpMs(s.mode, 3); s.cpEndTime = 0; }
+                else return false;
+            }) });
+    }
+    function gmUndoArrival() {
+        askConfirm({ title: 'Atšaukti atvykimą?', text: 'Taško užėmimas bus grąžintas į kelionės fazę su pilnu laiku.', okText: 'Taip, atšaukti',
+            onOk: () => mutate(s => {
+                if (!isCp(s.phase)) return false;
+                const n = s.phase.slice(2);
+                s.phase = 'pre' + n; s.cpRemaining = cpMs(s.mode, n); s.cpEndTime = 0;
+            }) });
+    }
+    function gmReset() {
+        askConfirm({ title: 'Perkrauti žaidimą?', text: 'Visų telefonų būsena bus išvalyta.', word: 'PERKRAUTI', okText: 'Perkrauti', danger: true,
+            onOk: () => gameRef.set(DEFAULT).then(() => toast('Žaidimas perkrautas')).catch(e => toast(e.message, true)) });
+    }
 
-        window.selectTeam = (team) => { setupTeam = team; updateSetupSummary(); };
-        window.selectMode = (mode) => { setupMode = mode; updateSetupSummary(); };
-        
-        function updateSetupSummary() {
-            const t = setupTeam === 'red' ? 'Raudona' : setupTeam === 'blue' ? 'Mėlyna' : 'Nėra';
-            const m = setupMode === 'normal' ? 'Įprastas' : setupMode === 'demo' ? 'Demo' : 'Nėra';
-            document.getElementById('setup-summary').innerText = `Komanda: ${t} | Režimas: ${m}`;
-            document.getElementById('gm-setup-summary').innerText = `Nustatymai: ${t} / ${m}`;
-        }
-
-        window.startGame = () => {
-            if (!setupTeam || !setupMode) return alert("Pirmiausia pasirinkite komandą ir režimą!");
-            state = { 
-                phase: 'pre1', 
-                globalEndTime: Date.now() + (TIMERS.global * 1000), 
-                globalRemaining: 0,
-                cpEndTime: 0,
-                cpRemaining: (setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1) * 1000, 
-                paused: false, 
-                mode: setupMode, 
-                team: setupTeam 
-            };
-            pushState();
-            startClockTick();
-        };
-
-        window.arriveAtPoint = () => {
-            if (state.phase === 'pre1') { state.phase = 'cp1'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            else if (state.phase === 'pre2') { state.phase = 'cp2'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            else if (state.phase === 'pre3') { state.phase = 'cp3'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            pushState();
-        };
-
-        window.continueToBaseTravel = () => {
-            state.phase = 'pre3';
-            state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3) * 1000;
-            state.cpEndTime = 0;
-            pushState();
-        };
-
-        window.gmStartGame = () => {
-            if (state.phase !== 'menu' && !confirm("Žaidimas jau vyksta! Priverstinai perkrauti?")) return;
-            if (!setupTeam || !setupMode) return alert("Pirmiausia nustatymuose pasirinkite Komandą ir Režimą!");
-            
-            state = { 
-                phase: 'pre1', 
-                globalEndTime: Date.now() + (TIMERS.global * 1000), 
-                globalRemaining: 0,
-                cpEndTime: 0,
-                cpRemaining: (setupMode === 'normal' ? TIMERS.normal.cp1 : TIMERS.demo.cp1) * 1000, 
-                paused: false, 
-                mode: setupMode, 
-                team: setupTeam 
-            };
-            pushState();
-            startClockTick();
-        };
-
-        window.gmResetApp = () => {
-            if (!confirm("Ar tikrai norite visiškai PERKRAUTI bendrą žaidimo būseną?")) return;
-            const resetState = { phase: 'menu', globalEndTime: 0, globalRemaining: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
-            set(gameRef, resetState);
-        };
-
-        window.gmNextPhase = () => {
-            if (state.phase === 'menu' || state.phase === 'victory' || state.phase === 'gameover') return alert("Pirmiausia pradėkite žaidimą.");
-            
-            if (state.phase === 'pre1') { state.phase = 'cp1'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            else if (state.phase === 'cp1') { state.phase = 'pre2'; state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2) * 1000; state.cpEndTime = 0; }
-            else if (state.phase === 'pre2') { state.phase = 'cp2'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            else if (state.phase === 'cp2') { state.phase = 'base'; state.cpEndTime = 0; }
-            else if (state.phase === 'base') { state.phase = 'pre3'; state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp3 : TIMERS.demo.cp3) * 1000; state.cpEndTime = 0; }
-            else if (state.phase === 'pre3') { state.phase = 'cp3'; state.cpEndTime = Date.now() + state.cpRemaining; }
-            else if (state.phase === 'cp3') { 
-                state.phase = 'victory'; 
-                state.cpEndTime = 0; 
-                state.globalRemaining = Math.max(0, state.globalEndTime - Date.now()); 
+    /* ---------- Laikmatis ---------- */
+    let advancing = false;
+    setInterval(() => {
+        if (!loaded) return;
+        updateUI();
+        if (role && !advancing) {
+            const probe = Object.assign({}, state);
+            if (advance(probe, now())) {
+                advancing = true;
+                mutate((s, t) => advance(s, t), () => {});
+                setTimeout(() => { advancing = false; }, 1500);
             }
-            
-            pushState();
         }
+    }, 500);
 
-        window.resetApp = () => {
-            if (role === 'attacker') {
-                const resetState = { phase: 'menu', globalEndTime: 0, globalRemaining: 0, cpEndTime: 0, cpRemaining: 0, paused: false, mode: 'normal', team: 'red' };
-                set(gameRef, resetState).then(() => location.reload());
+    /* ---------- Rodymas ---------- */
+    const SCREENS = ['s-loading', 's-norole', 's-menu', 's-travel', 's-capture', 's-base', 's-end', 's-defender', 's-gm'];
+    let shown = null;
+    function show(id) {
+        if (shown === id) return;
+        shown = id;
+        SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id));
+    }
+    const fmt = ms => {
+        const sec = Math.max(0, Math.ceil(ms / 1000));
+        return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+    };
+    function times() {
+        const s = state, t = now();
+        let g;
+        if (s.phase === 'victory') g = s.globalRemaining || 0;
+        else if (s.phase === 'gameover') g = 0;
+        else if (s.globalEndTime > 0) g = Math.max(0, s.globalEndTime - t);
+        else g = TIMERS.global * 1000;
+        let l = 0;
+        if (isCp(s.phase)) l = (s.paused || !(s.cpEndTime > 0)) ? s.cpRemaining : Math.max(0, s.cpEndTime - t);
+        else if (isPre(s.phase)) l = s.cpRemaining;
+        return { g, l };
+    }
+    function updateSetup() {
+        document.querySelectorAll('[data-team]').forEach(b => b.classList.toggle('sel', b.dataset.team === setup.team));
+        document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('sel', b.dataset.mode === setup.mode));
+        const txt = `Komanda: ${setup.team ? teamName(setup.team) : '—'} · Režimas: ${setup.mode ? (setup.mode === 'demo' ? 'Demo' : 'Įprastas') : '—'}`;
+        $('menu-summary').textContent = txt; $('gm-summary').textContent = txt;
+        $('menu-start').disabled = !(setup.team && setup.mode);
+    }
+
+    function updateUI() {
+        if (!loaded) return;
+        const s = state, { g, l } = times();
+        const live = s.phase !== 'menu' && !isTerminal(s.phase);
+
+        // Viršutinė juosta pagal puolančią komandą
+        document.body.classList.toggle('team-red', role !== 'gm' && live && s.team === 'red');
+        document.body.classList.toggle('team-blue', role !== 'gm' && live && s.team === 'blue');
+
+        // Pauzė
+        $('pause-overlay').classList.toggle('hidden', !(s.paused && live && role !== 'gm'));
+        $('pause-global').textContent = fmt(g);
+        $('pause-resume').classList.toggle('hidden', role !== 'attacker');
+        $('pause-wait').classList.toggle('hidden', role === 'attacker');
+        $('pause-fab').classList.toggle('hidden', !(role === 'attacker' && live && !s.paused));
+
+        if (!role) { show('s-norole'); return; }
+
+        if (role === 'attacker') {
+            if (s.phase === 'menu') { show('s-menu'); updateSetup(); }
+            else if (isPre(s.phase)) {
+                show('s-travel');
+                $('travel-title').textContent = `Keliaujama į KT${s.phase.slice(3)}`;
+                $('travel-global').textContent = fmt(g);
+            } else if (isCp(s.phase)) {
+                show('s-capture');
+                const n = s.phase.slice(2);
+                $('capture-title').textContent = `Užimamas KT${n}`;
+                $('capture-global').textContent = fmt(g);
+                $('capture-local').textContent = fmt(l);
+                $('capture-bar').style.width = Math.min(100, Math.max(0, (1 - l / cpMs(s.mode, n)) * 100)) + '%';
+            } else if (s.phase === 'base') {
+                show('s-base'); $('base-global').textContent = fmt(g);
             } else {
-                location.reload();
+                show('s-end');
+                const win = s.phase === 'victory';
+                $('end-title').textContent = win ? 'Pergalė' : 'Žaidimas baigtas';
+                $('end-title').className = 'end-title ' + (win ? 'ok' : 'bad');
+                $('end-sub').textContent = win
+                    ? `${teamName(s.team)} komanda užėmė visus taškus.`
+                    : 'Gynėjai išlaikė teritoriją. Laikas baigėsi.';
+                $('end-detail').textContent = win ? `Liko laiko: ${fmt(g)}` : `Užimta taškų: ${s.captured || 0} iš 3`;
             }
-        };
+        } else if (role === 'defender') {
+            show('s-defender');
+            $('def-global').textContent = fmt(g);
+            const cp = isCp(s.phase);
+            $('def-local-card').classList.toggle('hidden', !cp);
+            $('def-local').textContent = fmt(l);
+            const phaseMap = {
+                menu: 'Laukiama, kol puolėjai pradės', pre1: 'Puolėjai keliauja į KT1', cp1: 'Ginama KT1!',
+                pre2: 'Puolėjai keliauja į KT2', cp2: 'Ginama KT2!', base: 'Puolėjai užėmė bazę – laukiama kelionės',
+                pre3: 'Puolėjai keliauja į paskutinį KT', cp3: 'Ginamas paskutinis KT!',
+                victory: 'Pralaimėjote – puolėjai užėmė visus taškus', gameover: 'Pergalė – teritorija apginta!'
+            };
+            let txt = phaseMap[s.phase] || '';
+            if (s.paused && live) txt += ' (užėmimas sustabdytas)';
+            const st = $('def-status');
+            st.textContent = txt;
+            st.className = 'status' + (s.paused && live ? ' paused' : cp ? (s.team === 'blue' ? ' tint-blue' : ' tint-red') : '');
 
-        const togglePause = () => {
-            if (role !== 'attacker' && role !== 'gm') return;
-            
-            if (!state.paused) {
-                if (state.phase.startsWith('cp')) {
-                    state.cpRemaining = Math.max(0, state.cpEndTime - Date.now());
-                }
-                state.paused = true;
-            } else {
-                if (state.phase.startsWith('cp')) {
-                    state.cpEndTime = Date.now() + state.cpRemaining;
-                }
-                state.paused = false;
+            const order = ['menu', 'pre1', 'cp1', 'pre2', 'cp2', 'base', 'pre3', 'cp3', 'victory'];
+            const idx = order.indexOf(s.phase);
+            const taken = [idx >= 3, idx >= 5, s.phase === 'victory'];
+            for (let n = 1; n <= 3; n++) {
+                let cls = '', label = 'Laukia', dot = 'gray';
+                if (s.phase === 'gameover') label = 'Apginta';
+                else if (s.phase === 'cp' + n) { cls = (s.team === 'blue' ? 'blue' : 'red') + (s.paused ? '' : ' blink'); dot = s.team === 'blue' ? 'blue' : 'red'; label = s.paused ? 'Ginamas (pauzė)' : 'Ginamas'; }
+                else if (taken[n - 1]) { cls = s.team === 'blue' ? 'blue' : 'red'; dot = cls; label = 'Užimtas'; }
+                $('pt' + n).className = 'pt ' + cls;
+                $('lg-dot' + n).className = 'dot ' + dot;
+                $('lg-txt' + n).textContent = label;
             }
-            pushState();
-        };
-        document.querySelectorAll('.btn-pause-toggle').forEach(btn => btn.addEventListener('click', togglePause));
-
-        function startClockTick() {
-            if (clockTickInterval) clearInterval(clockTickInterval);
-            
-            clockTickInterval = setInterval(() => {
-                if (state.phase === 'menu') return;
-
-                updateUI();
-
-                if (role === 'attacker' || role === 'gm') {
-                    if (state.phase === 'victory' || state.phase === 'gameover') return;
-
-                    let now = Date.now();
-                    let phaseChanged = false;
-
-                    if (state.globalEndTime > 0 && now >= state.globalEndTime) {
-                        state.phase = 'gameover';
-                        phaseChanged = true;
-                    }
-                    else if (!state.paused && state.phase.startsWith('cp') && state.cpEndTime > 0 && now >= state.cpEndTime) {
-                        if (state.phase === 'cp1') {
-                            state.phase = 'pre2';
-                            state.cpRemaining = (state.mode === 'normal' ? TIMERS.normal.cp2 : TIMERS.demo.cp2) * 1000;
-                            state.cpEndTime = 0;
-                        } else if (state.phase === 'cp2') {
-                            state.phase = 'base';
-                        } else if (state.phase === 'cp3') {
-                            state.phase = 'victory';
-                            state.globalRemaining = Math.max(0, state.globalEndTime - Date.now());
-                        }
-                        phaseChanged = true;
-                    }
-
-                    if (phaseChanged) pushState();
-                }
-            }, 500); 
+        } else {
+            show('s-gm');
+            $('gm-global').textContent = fmt(g);
+            $('gm-local').textContent = isCp(s.phase) || isPre(s.phase) ? fmt(l) : '--:--';
+            const names = { menu: 'meniu', pre1: 'kelionė į KT1', cp1: 'KT1 užimamas', pre2: 'kelionė į KT2', cp2: 'KT2 užimamas', base: 'bazė', pre3: 'kelionė į KT3', cp3: 'KT3 užimamas', victory: 'puolėjų pergalė', gameover: 'gynėjų pergalė' };
+            const gst = $('gm-status');
+            gst.textContent = 'Fazė: ' + (names[s.phase] || s.phase) + (s.paused && live ? ' · pauzė' : '');
+            gst.className = 'status' + (s.paused && live ? ' paused' : '');
+            $('gm-pause').textContent = s.paused ? 'Tęsti' : 'Pauzė';
+            $('gm-pause').disabled = !live; $('gm-next').disabled = !live;
+            $('gm-undo').classList.toggle('hidden', !isCp(s.phase));
+            $('gm-start').textContent = s.phase === 'menu' ? 'Pradėti žaidimą' : 'Pradėti iš naujo';
+            $('gm-start').className = 'btn ' + (s.phase === 'menu' ? 'btn-primary' : 'btn-danger');
+            updateSetup();
         }
+    }
+    function mapFail() { $('map-img').classList.add('hidden'); $('map-fallback').classList.remove('hidden'); }
 
-        function pushState() {
-            if (role === 'attacker' || role === 'gm') {
-                set(gameRef, state).catch(err => console.error(err));
-            }
+    /* ---------- Pranešimai apie fazių pokyčius ---------- */
+    function announce(s) {
+        let msg = null, pattern = 1;
+        if (s.phase !== prevPhase) {
+            if (isCp(s.phase)) msg = `Pradėtas KT${s.phase.slice(2)} užėmimas`;
+            else if (s.phase === 'pre2' && prevPhase === 'cp1') msg = 'KT1 užimtas!';
+            else if (s.phase === 'base' && prevPhase === 'cp2') msg = 'KT2 užimtas!';
+            else if (s.phase === 'victory') { msg = 'Visi taškai užimti!'; pattern = 3; }
+            else if (s.phase === 'gameover') { msg = 'Laikas baigėsi'; pattern = 3; }
+            else if (s.phase === 'menu') msg = 'Žaidimas perkrautas';
+            else if (isPre(s.phase) && prevPhase === 'menu') msg = 'Žaidimas prasidėjo';
+        } else if (s.paused !== prevPaused) {
+            msg = s.paused ? 'Žaidimas sustabdytas' : 'Žaidimas tęsiamas';
         }
+        prevPhase = s.phase; prevPaused = s.paused;
+        if (msg) { toast(msg); beep(pattern); if (navigator.vibrate) navigator.vibrate(pattern === 3 ? [200, 100, 200, 100, 400] : 200); }
+    }
 
-        function updateUI() {
-            const overlay = document.getElementById('paused-overlay');
-            overlay.style.display = (state.paused && role !== 'gm') ? 'flex' : 'none';
-
-            let now = Date.now();
-            let currentGlobalSec = 0;
-            let currentLocalSec = 0;
-
-            if (state.phase === 'victory') {
-                currentGlobalSec = Math.floor((state.globalRemaining || 0) / 1000);
-            } else if (state.phase === 'gameover') {
-                currentGlobalSec = 0;
-            } else if (state.globalEndTime > 0) {
-                currentGlobalSec = Math.max(0, Math.floor((state.globalEndTime - now) / 1000));
-            }
-
-            if (state.phase.startsWith('pre') || state.phase === 'base') {
-                currentLocalSec = Math.floor(state.cpRemaining / 1000);
-            } else if (state.phase.startsWith('cp')) {
-                if (state.paused) {
-                    currentLocalSec = Math.floor(state.cpRemaining / 1000);
-                } else if (state.cpEndTime > 0) {
-                    currentLocalSec = Math.max(0, Math.floor((state.cpEndTime - now) / 1000));
-                }
-            }
-
-            const formattedGlobal = formatTime(currentGlobalSec);
-            const formattedLocal = formatTime(currentLocalSec);
-            
-            document.getElementById('pause-global-time').innerText = formattedGlobal;
-            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-
-            if (role === 'attacker') {
-                if (state.phase === 'menu') {
-                    document.getElementById('screen-menu').classList.add('active');
-                } else if (state.phase.startsWith('pre')) {
-                    document.getElementById('screen-travel').classList.add('active');
-                    const num = state.phase.replace('pre', '');
-                    document.getElementById('travel-title').innerText = `Keliaujama į KT${num}`;
-                    document.getElementById('travel-global-time').innerText = formattedGlobal;
-                } else if (state.phase.startsWith('cp')) {
-                    document.getElementById('screen-capture').classList.add('active');
-                    document.getElementById('capture-title').innerText = `Užimamas KT${state.phase.replace('cp', '')}`;
-                    document.getElementById('capture-global-time').innerText = formattedGlobal;
-                    document.getElementById('capture-local-time').innerText = formattedLocal;
-                } else if (state.phase === 'base') {
-                    document.getElementById('screen-base').classList.add('active');
-                    document.getElementById('base-global-time').innerText = formattedGlobal;
-                } else if (state.phase === 'victory' || state.phase === 'gameover') {
-                    document.getElementById('screen-end').classList.add('active');
-                    const endTitle = document.getElementById('end-title');
-                    const endSub = document.getElementById('end-subtitle');
-                    if (state.phase === 'victory') {
-                        endTitle.innerText = "PERGALĖ";
-                        endTitle.style.color = "#2ecc71";
-                        endSub.innerText = `${state.team === 'red' ? 'Raudona' : 'Mėlyna'} komanda užėmė visus taškus! \nLiko laiko: ${formattedGlobal}`;
-                    } else {
-                        endTitle.innerText = "ŽAIDIMAS BAIGTAS";
-                        endTitle.style.color = "#e74c3c";
-                        endSub.innerText = "Gynėjai sėkmingai išlaikė teritoriją. Laikas baigėsi.";
-                    }
-                }
-            } else if (role === 'defender') {
-                document.getElementById('screen-defender').classList.add('active');
-                document.getElementById('def-global-time').innerText = formattedGlobal;
-                
-                const statusDiv = document.getElementById('def-status');
-                const localContainer = document.getElementById('def-local-container');
-
-                const phaseMap = { 
-                    menu: "Laukiama kol puolėjai pradės...", 
-                    pre1: "Puolėjai keliauja į KT1", 
-                    cp1: "Ginama KT1!", 
-                    pre2: "Puolėjai keliauja į KT2", 
-                    cp2: "Ginama KT2!", 
-                    base: "Puolėjai užėmė bazę - laukiama kelionės", 
-                    pre3: "Puolėjai keliauja į paskutinį KT", 
-                    cp3: "Ginamas paskutinis KT!", 
-                    victory: "PRALAIMĖJIMAS - Puolėjai užėmė visus taškus.", 
-                    gameover: "PERGALĖ - Sėkmingai apgynėte teritoriją!" 
-                };
-
-                let statusText = `Fazė: ${phaseMap[state.phase] || ''}`;
-                if (state.paused && state.phase !== 'menu' && state.phase !== 'victory' && state.phase !== 'gameover') {
-                    statusText += " (UŽĖMIMAS SUSTABDYTAS)";
-                }
-                statusDiv.innerText = statusText;
-
-                if (state.phase.startsWith('cp')) {
-                    localContainer.style.display = 'block';
-                    document.getElementById('def-local-time').innerText = formattedLocal;
-                    statusDiv.style.backgroundColor = state.paused ? '#e67e22' : 'var(--red-team)';
-                } else {
-                    localContainer.style.display = 'none';
-                    statusDiv.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }
-
-                const cp1El = document.getElementById('map-cp1');
-                const cp2El = document.getElementById('map-cp2');
-                const cp3El = document.getElementById('map-cp3');
-                
-                const blinkClass = state.team === 'red' ? 'blinking-red' : 'blinking-blue';
-                const solidClass = state.team === 'red' ? 'solid-red' : 'solid-blue';
-
-                const setPointState = (el, uncapturedPhases, capturingPhase) => {
-                    el.className = 'map-point'; 
-                    
-                    if (state.phase === 'gameover') {
-                        el.classList.add('solid-gray'); 
-                    } else if (uncapturedPhases.includes(state.phase)) {
-                        el.classList.add('solid-gray'); 
-                    } else if (state.phase === capturingPhase) {
-                        el.classList.add(blinkClass); 
-                    } else {
-                        el.classList.add(solidClass); 
-                    }
-                };
-
-                setPointState(cp1El, ['menu', 'pre1'], 'cp1');
-                setPointState(cp2El, ['menu', 'pre1', 'cp1', 'pre2'], 'cp2');
-                setPointState(cp3El, ['menu', 'pre1', 'cp1', 'pre2', 'cp2', 'base', 'pre3'], 'cp3');
-
-            } else if (role === 'gm') {
-                document.getElementById('screen-gm').classList.add('active');
-                document.getElementById('gm-global-time').innerText = formattedGlobal;
-                document.getElementById('gm-local-time').innerText = state.phase.startsWith('cp') ? formattedLocal : '--:--';
-                
-                const gmPhaseMap = {
-                    menu: "MENIU", pre1: "KELIONĖ 1", cp1: "KT 1", pre2: "KELIONĖ 2", cp2: "KT 2", base: "BAZĖ", pre3: "KELIONĖ 3", cp3: "KT 3", victory: "PERGALĖ", gameover: "PABAIGA"
-                };
-                
-                let phaseText = gmPhaseMap[state.phase] || state.phase.toUpperCase();
-                if (state.paused) phaseText += " (PAUZĖ)";
-                document.getElementById('gm-status').innerText = `Fazė: ${phaseText}`;
-                
-                if (state.paused) document.getElementById('gm-status').style.backgroundColor = '#e67e22';
-                else document.getElementById('gm-status').style.backgroundColor = 'rgba(255,255,255,0.1)';
-            }
+    /* ---------- Garsas, ekrano budėjimas ---------- */
+    let audioCtx = null;
+    function unlockAudio() {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'running') $('sound-hint').classList.add('hidden');
+        } catch (e) {}
+        keepAwake();
+    }
+    function beep(times) {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        for (let i = 0; i < times; i++) {
+            const t0 = audioCtx.currentTime + i * 0.28;
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.frequency.value = 880; o.connect(g); g.connect(audioCtx.destination);
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+            o.start(t0); o.stop(t0 + 0.22);
         }
+    }
+    document.addEventListener('pointerdown', unlockAudio);
+    if (role) $('sound-hint').classList.remove('hidden');
 
-        function formatTime(totalSeconds) {
-            if(totalSeconds < 0) totalSeconds = 0;
-            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-            const s = (totalSeconds % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
-        }
-    </script>
+    let wake = null;
+    async function keepAwake() {
+        try {
+            if (role && role !== 'gm' && 'wakeLock' in navigator && document.visibilityState === 'visible' && !wake) {
+                wake = await navigator.wakeLock.request('screen');
+                wake.addEventListener('release', () => { wake = null; });
+            }
+        } catch (e) {}
+    }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+    keepAwake();
+
+    /* ---------- Pranešimas (toast) ir patvirtinimo langas ---------- */
+    let toastTimer = null;
+    function toast(msg, isErr) {
+        const el = $('toast');
+        el.textContent = msg; el.className = (isErr ? 'err ' : '') + 'show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { el.className = isErr ? 'err' : ''; }, 3500);
+    }
+    const norm = x => (x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+    let confirmOpts = null;
+    function askConfirm(opts) {
+        confirmOpts = opts;
+        $('cm-title').textContent = opts.title;
+        $('cm-text').textContent = opts.text || '';
+        $('cm-ok').textContent = opts.okText || 'Taip';
+        $('cm-ok').className = 'btn ' + (opts.danger ? 'btn-danger-solid' : 'btn-primary');
+        $('cm-typebox').classList.toggle('hidden', !opts.word);
+        $('cm-input').value = '';
+        if (opts.word) $('cm-hint').textContent = `Patvirtinimui įrašykite: ${opts.word}`;
+        $('confirm-modal').classList.remove('hidden');
+        if (opts.word) $('cm-input').focus();
+    }
+    function closeConfirm() { $('confirm-modal').classList.add('hidden'); confirmOpts = null; }
+    function confirmOk() {
+        if (!confirmOpts) return;
+        if (confirmOpts.word && norm($('cm-input').value) !== norm(confirmOpts.word)) { toast('Neteisingas patvirtinimo žodis', true); return; }
+        const fn = confirmOpts.onOk; closeConfirm(); fn();
+    }
+
+    updateSetup();
+    if (!role) { loaded = true; show('s-norole'); }
+</script>
 </body>
 </html>
